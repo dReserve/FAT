@@ -1,0 +1,2 @@
+# FAT
+Fundamental Algorithmic Trader
