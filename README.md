@@ -1,2 +1,3 @@
 # FAT
-Fundamental Algorithmic Trader
+
+The dReserve project's Fundamental Algorithmic Trader.
