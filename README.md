@@ -1,3 +1,2 @@
-# FAT
-
-The dReserve project's Fundamental Algorithmic Trader.
+# FATStack
+The dReserve project's fundamental analysis toolset.
