@@ -15,7 +15,7 @@ class DataServer:
         kraken = fatstack.core.root.KRAKEN
 
         kraken.bind_pairs(args.dsinstruments)
-        print(fatstack.core.root.X.KRAKEN.ls())
+        print("KRAKEN: {}".format(fatstack.core.root.X.KRAKEN.ls()))
 
         print('Conencting to the database.')
         db = psycopg2.connect(dbname=args.dbname, user=args.dbuser, host='localhost', password=args.dbpwd)

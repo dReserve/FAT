@@ -90,7 +90,6 @@ class KRAKEN(Exchange):
 
     def names(self):
         ns = {k: k for k, v in dict.fromkeys(root.I.ls()).items()}
-        print(ns)
         for name, alts in self.name_map.items():
             if alts:
                 for alt in alts:
