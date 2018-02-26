@@ -11,11 +11,11 @@ import krakenex
 
 class DataServer:
     def __init__(self, args):
-        print('Getting pairs.')
-        kraken = krakenex.API()
-        pairs = kraken.query_public('AssetPairs')['result']
-        
+        print('Adding tracked Pairs.')
+        kraken = fatstack.core.root.KRAKEN
 
+        kraken.bind_pairs(args.dsinstruments)
+        print(fatstack.core.root.X.KRAKEN.ls())
 
         print('Conencting to the database.')
         db = psycopg2.connect(dbname=args.dbname, user=args.dbuser, host='localhost', password=args.dbpwd)
@@ -28,9 +28,6 @@ class DataServer:
         cur.close()
         db.close()
 
-        print(args)
-
-def start_ds(args):
+def start(args):
     ds = DataServer(args)
     # ds.loop()
-    print(ds)

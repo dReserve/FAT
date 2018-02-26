@@ -68,7 +68,7 @@ def shell(args):
 
 def dataserver(args):
     import fatstack.dataserver
-    fatstack.dataserver.start_ds(args)
+    fatstack.dataserver.start(args)
 
 def simulator(args):
     print("Running the simulator.")
