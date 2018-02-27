@@ -14,15 +14,17 @@ class Tree(Node):
     "The FATStack Tree makes FATStack objects accessable through an object hierarchy."
     def __init__(self):
         "Creates a tree and loads it up with the defined objects."
-        self.bind_codes('I', Instrument)
-        self.bind_codes('X', Exchange)
+        self.bind_codes('Instruments', Instrument)
+        self.bind_codes('Exchanges', Exchange)
 
     def bind_codes(self, name, base_class):
         "Binds objects to the tree by their base class."
-        n = self.__dict__[name] = Node()
+        n = Node()
+        setattr(self, name, n)
         for C in base_class.__subclasses__():
-            o = self.__dict__[C.__name__] = C()
-            n.__dict__[C.__name__] = o
+            o = C()
+            setattr(self,C.__name__, o)
+            setattr(n, C.__name__, o)
 
 class Instrument:
     "A financial instrument that you can work with in FATStack."
@@ -34,21 +36,38 @@ class Instrument:
 
 class Pair:
     "A trading pair of two Instruments. An instance of this class attached to an Exchange represents a market."
-    def __init__(self, base, quote, api_name):
+    def __init__(self, base, quote):
+        self.base = base
+        self.quote = quote
+        self.code = base.code + '_' + quote.code
+
+    def __str__(self):
+        return self.code
+
+    def __repr__(self):
+        return "<Pair base: {}, quote: {}>".format(self.base, self.quote)
+
+class Exchange(Node):
+    "An exchange that provides a API for trading."
+    def __str__(self):
+        return self.code
+
+    def __repr__(self):
+        return "<Exchange code: {}>".format(self.code)
+
+class Market:
+    "A tradable instument Pair on an Exchange."
+    def __init__(self, exchange, base, quote, api_name):
+        self.exchange = exchange
         self.base = base
         self.quote = quote
         self.api_name = api_name
 
     def __str__(self):
-        return "{}{}".format(self.base.__str__(), self.quote.__str__())
+        return "{}_{}_{}".format(self.base, self.quote, self.exchange)
 
     def __repr__(self):
-        return "<Pair base: {}, quote: {}>".format(self.base.code, self.quote.code)
-
-class Exchange(Node):
-    "An exchange that provides a API for trading."
-    def __repr__(self):
-        return "<Exchange code: {}>".format(self.code)
+        return "<Market exchange: {}, base: {}, quote: {}>".format(self.exchange, self.base, self.quote)
 
 # Instruments
 class BTC(Instrument):
@@ -81,35 +100,36 @@ class KRAKEN(Exchange):
     "The Kraken cryptocurrency exchange."
     def __init__(self):
         self.code = self.__class__.__name__
-        self.name_map = {
+
+        self.alt_names = {
             'BTC': ('XXBT', 'XBT'),
             'USD': ('ZUSD',),
             'ETH': ('XETH',) }
-        import krakenex
+        self.alt_names_map = {}
+        for code, alts in self.alt_names.items():
+            for alt in alts:
+                self.alt_names_map[alt] = code
+
+        import krakenex    # TO DO: Remove this from here.
         self.api = krakenex.API()
+        self.track = False
 
-    def names(self):
-        ns = {k: k for k, v in dict.fromkeys(root.I.ls()).items()}
-        for name, alts in self.name_map.items():
-            if alts:
-                for alt in alts:
-                    ns[alt] = name
-        return ns
+    def get_markets(self, instruments):
+        insts = {i.code: i for i in instruments}
+        names = {i.code: i.code for i in instruments}
+        names.update(self.alt_names_map)
 
-    def bind_pairs(self, instruments):
-        insts = [i.code for i in instruments]
-        names = self.names()
         pairs = self.api.query_public('AssetPairs')['result']
+
+        markets = []
         for pair in pairs:
             for alt, code in names.items():
                 if pair.startswith(alt) and code in insts:
-                    base = root.I.__dict__[code]
+                    base = code
                     quote = pair[len(alt):]
                     if quote in names and names[quote] in insts:
-                        quote = root.I.__dict__[names[quote]]
-                        c = base.code + '_' + quote.code
-                        p = root.__dict__[c] = Pair(base, quote, pair)
-                        root.X.KRAKEN.__dict__[c] = p
+                        markets.append(Market(self, insts[base], insts[names[quote]], pair))
 
+        return markets
 
-root = Tree()
+ORIGIN = Tree()

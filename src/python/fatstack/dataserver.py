@@ -8,25 +8,46 @@ it to other FATStack processes.
 import fatstack.core
 import psycopg2
 import krakenex
+import copy
 
 class DataServer:
-    def __init__(self, args):
-        print('Adding tracked Pairs.')
-        kraken = fatstack.core.root.KRAKEN
+    def __init__(self, config):
+        # Setting up the server's ROOT Tree
+        self.ROOT = copy.copy(fatstack.core.ORIGIN)
 
-        kraken.bind_pairs(args.dsinstruments)
-        print("KRAKEN: {}".format(fatstack.core.root.X.KRAKEN.ls()))
+        # Making config accessible from the class
+        self.ROOT.Config = config
 
-        print('Conencting to the database.')
-        db = psycopg2.connect(dbname=args.dbname, user=args.dbuser, host='localhost', password=args.dbpwd)
+        # Setting up the database
 
-        cur = db.cursor()
+        # Setting the 'track' flag for Instruments
+        for i in self.ROOT.Config.tracked_instruments:
+            i.track = True
 
-        # cur.execute('CREATE TABLE test (id serial PRIMARY KEY, num integer, data varchar);')
-        # db.commit()
+        # Setting up tracked Exchanges
+        for x in self.ROOT.Config.tracked_exchanges:
+            x.track = True
+            markets = x.get_markets(self.ROOT.Config.tracked_instruments)
+            print(markets)
 
-        cur.close()
-        db.close()
+        print("ROOT: {}".format(self.ROOT.ls()))
+
+        # print('Adding tracked Pairs.')
+        # kraken = self.ROOT.KRAKEN
+        #
+        # kraken.bind_pairs(args.instruments)
+        # print("KRAKEN: {}".format(self.ROOT.Exchanges.KRAKEN.ls()))
+
+        # print('Conencting to the database.')
+        # db = psycopg2.connect(dbname=config.db_name, user=config.db_user, host='localhost', password=config.db_pwd)
+        #
+        # cur = db.cursor()
+        #
+        # # cur.execute('CREATE TABLE test (id serial PRIMARY KEY, num integer, data varchar);')
+        # # db.commit()
+        #
+        # cur.close()
+        # db.close()
 
 def start(args):
     ds = DataServer(args)
