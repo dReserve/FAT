@@ -131,5 +131,3 @@ class KRAKEN(Exchange):
                         markets.append(Market(self, insts[base], insts[names[quote]], pair))
 
         return markets
-
-ORIGIN = Tree()

@@ -11,12 +11,9 @@ import krakenex
 import copy
 
 class DataServer:
-    def __init__(self, config):
-        # Setting up the server's ROOT Tree
-        self.ROOT = copy.copy(fatstack.core.ORIGIN)
-
-        # Making config accessible from the class
-        self.ROOT.Config = config
+    def __init__(self, ROOT):
+        # Mounting ROOT
+        self.ROOT = ROOT
 
         # Setting up the database
 
