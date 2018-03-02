@@ -78,7 +78,7 @@ def startup():
 
     shell_parser.set_defaults(func=shell)
 
-    # The dataserver parser.
+    # The dataserver parser
     dataserver_parser = subparsers.add_parser(
             name = "dataserver",
             aliases=['ds'],
@@ -95,7 +95,7 @@ def startup():
 
     dataserver_parser.set_defaults(func=dataserver)
 
-    # The simulator parser.
+    # The simulator parser
     simulator_parser = subparsers.add_parser(
             name = "simulator",
             aliases=['sim'],
