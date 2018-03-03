@@ -7,7 +7,7 @@ it to other FATStack processes.
 
 import fatstack.core
 import psycopg2
-import krakenex
+import asyncio
 
 class DataServer:
     def __init__(self, ROOT):
@@ -15,6 +15,10 @@ class DataServer:
         self.ROOT = ROOT
 
         # Setting up the database
+        self.db = Database(ROOT)
+
+        # Setting up the event loop
+        self.loop = asyncio.get_event_loop()
 
         # Setting the 'track' flag for Instruments
         for i in self.ROOT.Config.tracked_instruments:
@@ -25,12 +29,20 @@ class DataServer:
             x.track = True
             markets = x.get_markets(self.ROOT.Config.tracked_instruments)
             print(markets)
+            asyncio.ensure_future(x.api_scheduler(2))
 
         print("ROOT: {}".format(self.ROOT.ls()))
 
-        self.db = Database(ROOT)
+    def run_forever(self):
+        try:
+            self.loop.run_forever()
+        finally:
+            self.loop.close()
 
 class Database:
+    """
+    This class represents the relational database connection of the DataServer.
+    """
     def __init__(self, ROOT):
         self.ROOT = ROOT
 
@@ -67,7 +79,9 @@ class Database:
                                                 market     INT4 REFERENCES market ) ;""" )
             conn.commit()
             cur.close()
+            print("New database created.")
         else:
+            print("Database exists, creating connection.")
             conn = self.connect()
 
         admin_cur.close()
@@ -78,4 +92,4 @@ class Database:
 
 def start(args):
     ds = DataServer(args)
-    # ds.loop()
+    ds.run_forever()

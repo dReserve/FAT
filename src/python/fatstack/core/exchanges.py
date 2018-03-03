@@ -2,6 +2,7 @@
 This module define the exchanges representable in FATStack.
 """
 from .tree import *
+import asyncio
 
 # Base classes
 class Exchange(Node):
@@ -24,7 +25,8 @@ class Market:
         return "{}_{}_{}".format(self.base, self.quote, self.exchange)
 
     def __repr__(self):
-        return "<Market exchange: {}, base: {}, quote: {}>".format(self.exchange, self.base, self.quote)
+        return "<Market exchange: {}, base: {}, quote: {}, api_name: {}>".format(self.exchange, self.base,
+                self.quote, self.api_name)
 
 
 # Exchanges
@@ -63,3 +65,10 @@ class KRAKEN(Exchange):
                         markets.append(Market(self, insts[base], insts[names[quote]], pair))
 
         return markets
+
+    @asyncio.coroutine
+    def api_scheduler(self, timeout):
+        while True:
+            yield from asyncio.sleep(timeout)
+            print("Inside {}s scheduler.".format(self.code))
+        return False
