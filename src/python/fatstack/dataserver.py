@@ -8,6 +8,8 @@ it to other FATStack processes.
 import fatstack.core
 import psycopg2
 import asyncio
+import signal
+import functools
 
 class DataServer:
     def __init__(self, ROOT):
@@ -20,6 +22,9 @@ class DataServer:
 
         # Setting up the event loop
         self.loop = asyncio.get_event_loop()
+        for signame in ('SIGINT', 'SIGTERM'):
+            self.loop.add_signal_handler(getattr(signal, signame),
+                    functools.partial(self.ask_exit, signame))
 
         # Setting the 'track' flag for Instruments
         for i in self.ROOT.Config.tracked_instruments:
@@ -34,6 +39,15 @@ class DataServer:
                 asyncio.ensure_future(m.track(self.ROOT))
 
         print("ROOT: {}".format(self.ROOT.ls()))
+
+    def ask_exit(self, signame):
+        print("\nReceived signal %s, exiting." % signame)
+        for task in asyncio.Task.all_tasks():
+            task.cancel()
+        asyncio.ensure_future(self.exit())
+
+    async def exit(self):
+        asyncio.get_event_loop().stop()
 
     def run_forever(self):
         try:
