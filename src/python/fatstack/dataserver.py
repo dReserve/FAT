@@ -13,6 +13,7 @@ class DataServer:
     def __init__(self, ROOT):
         # Mounting ROOT
         self.ROOT = ROOT
+        ROOT.DataServer = self
 
         # Setting up the database
         self.db = Database(ROOT)
@@ -28,8 +29,9 @@ class DataServer:
         for x in self.ROOT.Config.tracked_exchanges:
             x.track = True
             markets = x.get_markets(self.ROOT.Config.tracked_instruments)
-            print(markets)
-            asyncio.ensure_future(x.api_scheduler(2))
+            for m in markets:
+                print("Tracking: {}".format(m))
+                asyncio.ensure_future(m.track(self.ROOT))
 
         print("ROOT: {}".format(self.ROOT.ls()))
 
@@ -62,7 +64,7 @@ class Database:
         admin_cur.execute("SELECT 1 FROM pg_database WHERE datname=%s;",(self.ROOT.Config.db_name,))
 
         if not admin_cur.rowcount:
-            print("Datapase doesn't exist, creating one.")
+            print("Database doesn't exist, creating one.")
             admin_cur.execute("CREATE DATABASE " + self.ROOT.Config.db_name)
 
             conn = self.connect()

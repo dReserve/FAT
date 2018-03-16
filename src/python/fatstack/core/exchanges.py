@@ -28,6 +28,13 @@ class Market:
         return "<Market exchange: {}, base: {}, quote: {}, api_name: {}>".format(self.exchange, self.base,
                 self.quote, self.api_name)
 
+    async def track(self, ROOT):
+        print(ROOT.DataServer)
+        while True:
+            print("Inside {}s tracker @{} .".format(self, ROOT.DataServer.loop.time()))
+            await asyncio.sleep(ROOT.Config.timeout)
+        return False
+
 
 # Exchanges
 class KRAKEN(Exchange):
@@ -66,9 +73,9 @@ class KRAKEN(Exchange):
 
         return markets
 
-    @asyncio.coroutine
-    def api_scheduler(self, timeout):
+
+    async def api_scheduler(self, timeout):
         while True:
-            yield from asyncio.sleep(timeout)
+            await asyncio.sleep(timeout)
             print("Inside {}s scheduler.".format(self.code))
         return False

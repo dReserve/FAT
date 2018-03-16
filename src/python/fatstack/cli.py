@@ -92,6 +92,7 @@ def startup():
             type=inst, help="Space separated list of supported instuments to track.", default=[])
     dataserver_parser.add_argument('--exchanges', '-x', nargs='+', dest='tracked_exchanges',
             type=exch, help="Space separated list of supported exchanges to track.", default=[])
+    dataserver_parser.add_argument('--timeout', '-t', type=int, help="Tracking timeout.", default=2)
 
     dataserver_parser.set_defaults(func=dataserver)
 
