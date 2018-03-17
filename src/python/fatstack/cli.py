@@ -1,6 +1,7 @@
 import argparse
-import fatstack.core
+import logging
 
+import fatstack.core
 ROOT = fatstack.core.ROOT
 
 class ConfigError(Exception):
@@ -22,36 +23,13 @@ def startup():
     a shallow copy of this.
     """
 
-    # Type checkers and converters for different FATStack objects. They are here to see ROOT.
-    def inst(i):
-        """
-        Converting an instrument code to an Instrument object. Also does type checking at the same
-        time.
-        """
-        try:
-            return getattr(ROOT.Instruments, i.upper())
-        except KeyError:
-            msg = "Not a valid instrument: {} .".format(i)
-            raise argparse.ArgumentTypeError(msg)
-
-    def exch(x):
-        """
-        Converting an exchange code to an Exchange object. Also does type checking at the same
-        time.
-        """
-        try:
-            return getattr(ROOT.Exchanges, x.upper())
-        except KeyError:
-            msg = "Not a valid exchange: {} .".format(x)
-            raise argparse.ArgumentTypeError(msg)
-
-
     # The main command line argument parser
     parser = argparse.ArgumentParser(description="The dReserve project's Fundamental Algorithmic Trader.")
     subparsers = parser.add_subparsers()
 
     # The default command is the shell.
     parser.set_defaults(func=shell)
+    parser.add_argument('-L', '--log-level', default='INFO', help="logging level", metavar='LEVEL')
 
     # The shell parser
     shell_parser = subparsers.add_parser(
@@ -99,10 +77,16 @@ def startup():
 
     trader_parser.set_defaults(func=trader)
 
+    # Parsing arguments
     args = parser.parse_args()
+
+    # Setting up logging
+    logging.basicConfig(level=getattr(logging, args.log_level.upper()),
+                        format='%(levelname)s: %(message)s')
+
     if len(args.tracked_instruments) < 2: raise ConfigError('tracked_instruments', "Collector needs at least two instrument.")
     if len(args.tracked_exchanges) < 1: raise ConfigError('tracked_exchanges', "Collector needs at least one exchange to track.")
-    print("Command line arguments parsed.")
+    logging.info("Command line arguments parsed.")
 
     # Mounting the config to the ROOT
     ROOT.Config = args
@@ -111,9 +95,33 @@ def startup():
     args.func(args)
 
 
+# Special type converters for FATS specific command line arguments.
+def inst(i):
+    """
+    Converting an instrument code to an Instrument object. Also does type checking at the same
+    time.
+    """
+    try:
+        return getattr(ROOT.Instruments, i.upper())
+    except KeyError:
+        msg = "Not a valid instrument: {} .".format(i)
+        raise argparse.ArgumentTypeError(msg)
+
+def exch(x):
+    """
+    Converting an exchange code to an Exchange object. Also does type checking at the same
+    time.
+    """
+    try:
+        return getattr(ROOT.Exchanges, x.upper())
+    except KeyError:
+        msg = "Not a valid exchange: {} .".format(x)
+        raise argparse.ArgumentTypeError(msg)
+
+
 # Functions of the different subcommands.
 def shell(config):
-    print("Running the Shell.")
+    logging.info("Running the Shell.")
 
 
 def collector(config):
@@ -123,8 +131,8 @@ def collector(config):
 
 
 def brain(config):
-    print("Running the Brain.")
+    logging.info("Running the Brain.")
 
 
 def trader(config):
-    print("Running the Trader.")
+    logging.info("Running the Trader.")

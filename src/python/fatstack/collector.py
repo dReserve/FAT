@@ -10,6 +10,7 @@ import psycopg2
 import asyncio
 import signal
 import functools
+import logging
 
 ROOT = fatstack.core.ROOT
 
@@ -36,13 +37,13 @@ class Collector:
             x.track = True
             markets = x.get_markets(ROOT.Config.tracked_instruments)
             for m in markets:
-                print("Tracking: {}".format(m))
+                logging.info("Tracking: {}".format(m))
                 asyncio.ensure_future(m.track())
 
-        print("ROOT: {}".format(ROOT.ls()))
+        logging.info("ROOT: {}".format(ROOT.ls()))
 
     def ask_exit(self, signame):
-        print("\nReceived signal %s, exiting." % signame)
+        logging.info("\nReceived signal %s, exiting." % signame)
         for task in asyncio.Task.all_tasks():
             task.cancel()
         asyncio.ensure_future(self.exit())
@@ -76,7 +77,7 @@ class Database:
         admin_cur.execute("SELECT 1 FROM pg_database WHERE datname=%s;",(ROOT.Config.db_name,))
 
         if not admin_cur.rowcount:
-            print("Database doesn't exist, creating one.")
+            logging.info("Database doesn't exist, creating one.")
             admin_cur.execute("CREATE DATABASE " + ROOT.Config.db_name)
 
             conn = self.connect()
@@ -93,9 +94,9 @@ class Database:
                                                 market     INT4 REFERENCES market ) ;""" )
             conn.commit()
             cur.close()
-            print("New database created.")
+            logging.info("New database created.")
         else:
-            print("Database exists, creating connection.")
+            logging.info("Database exists, creating connection.")
             conn = self.connect()
 
         admin_cur.close()
