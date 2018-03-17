@@ -11,11 +11,11 @@ import asyncio
 import signal
 import functools
 
-class DataServer:
+class Collector:
     def __init__(self, ROOT):
         # Mounting ROOT
         self.ROOT = ROOT
-        ROOT.DataServer = self
+        ROOT.Collector = self
 
         # Setting up the database
         self.db = Database(ROOT)
@@ -57,7 +57,7 @@ class DataServer:
 
 class Database:
     """
-    This class represents the relational database connection of the DataServer.
+    This class represents the relational database connection of the Collector.
     """
     def __init__(self, ROOT):
         self.ROOT = ROOT
@@ -107,5 +107,5 @@ class Database:
 
 
 def start(args):
-    ds = DataServer(args)
+    ds = Collector(args)
     ds.run_forever()

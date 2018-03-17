@@ -29,9 +29,9 @@ class Market:
                 self.quote, self.api_name)
 
     async def track(self, ROOT):
-        print(ROOT.DataServer)
+        print(ROOT.Collector)
         while True:
-            print("Inside {}s tracker @{} .".format(self, ROOT.DataServer.loop.time()))
+            print("Inside {}s tracker @{} .".format(self, ROOT.Collector.loop.time()))
             await asyncio.sleep(ROOT.Config.timeout)
         return False
 
