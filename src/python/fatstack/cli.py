@@ -119,7 +119,7 @@ def shell(config):
 def collector(config):
     """ Starting the Collector. """
     import fatstack.collector
-    fatstack.collector.start(ROOT)
+    fatstack.collector.start()
 
 
 def brain(config):

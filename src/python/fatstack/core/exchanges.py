@@ -3,6 +3,7 @@ This module define the exchanges representable in FATStack.
 """
 from .tree import *
 import asyncio
+import fatstack.core
 
 # Base classes
 class Exchange(Node):
@@ -28,8 +29,8 @@ class Market:
         return "<Market exchange: {}, base: {}, quote: {}, api_name: {}>".format(self.exchange, self.base,
                 self.quote, self.api_name)
 
-    async def track(self, ROOT):
-        print(ROOT.Collector)
+    async def track(self):
+        ROOT = fatstack.core.ROOT
         while True:
             print("Inside {}s tracker @{} .".format(self, ROOT.Collector.loop.time()))
             await asyncio.sleep(ROOT.Config.timeout)

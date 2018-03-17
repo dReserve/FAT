@@ -11,14 +11,15 @@ import asyncio
 import signal
 import functools
 
+ROOT = fatstack.core.ROOT
+
 class Collector:
-    def __init__(self, ROOT):
-        # Mounting ROOT
-        self.ROOT = ROOT
+    def __init__(self):
+        # Mounting new Collector on ROOT
         ROOT.Collector = self
 
         # Setting up the database
-        self.db = Database(ROOT)
+        self.db = Database()
 
         # Setting up the event loop
         self.loop = asyncio.get_event_loop()
@@ -27,18 +28,18 @@ class Collector:
                     functools.partial(self.ask_exit, signame))
 
         # Setting the 'track' flag for Instruments
-        for i in self.ROOT.Config.tracked_instruments:
+        for i in ROOT.Config.tracked_instruments:
             i.track = True
 
         # Setting up tracked Exchanges
-        for x in self.ROOT.Config.tracked_exchanges:
+        for x in ROOT.Config.tracked_exchanges:
             x.track = True
-            markets = x.get_markets(self.ROOT.Config.tracked_instruments)
+            markets = x.get_markets(ROOT.Config.tracked_instruments)
             for m in markets:
                 print("Tracking: {}".format(m))
-                asyncio.ensure_future(m.track(self.ROOT))
+                asyncio.ensure_future(m.track())
 
-        print("ROOT: {}".format(self.ROOT.ls()))
+        print("ROOT: {}".format(ROOT.ls()))
 
     def ask_exit(self, signame):
         print("\nReceived signal %s, exiting." % signame)
@@ -59,27 +60,24 @@ class Database:
     """
     This class represents the relational database connection of the Collector.
     """
-    def __init__(self, ROOT):
-        self.ROOT = ROOT
-
+    def __init__(self):
         self.connection = self.connect_or_init()
 
-
     def connect(self):
-        return psycopg2.connect(dbname=self.ROOT.Config.db_name, user=self.ROOT.Config.db_user,
-                                host='localhost', password=self.ROOT.Config.db_pwd)
+        return psycopg2.connect(dbname=ROOT.Config.db_name, user=ROOT.Config.db_user,
+                                host='localhost', password=ROOT.Config.db_pwd)
 
     def connect_or_init(self):
         # Connect to an database that's surely exists.
-        admin_conn = psycopg2.connect(dbname='postgres', user=self.ROOT.Config.db_user, host='localhost',
-                                    password=self.ROOT.Config.db_pwd)
+        admin_conn = psycopg2.connect(dbname='postgres', user=ROOT.Config.db_user, host='localhost',
+                                    password=ROOT.Config.db_pwd)
         admin_conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
         admin_cur = admin_conn.cursor()
-        admin_cur.execute("SELECT 1 FROM pg_database WHERE datname=%s;",(self.ROOT.Config.db_name,))
+        admin_cur.execute("SELECT 1 FROM pg_database WHERE datname=%s;",(ROOT.Config.db_name,))
 
         if not admin_cur.rowcount:
             print("Database doesn't exist, creating one.")
-            admin_cur.execute("CREATE DATABASE " + self.ROOT.Config.db_name)
+            admin_cur.execute("CREATE DATABASE " + ROOT.Config.db_name)
 
             conn = self.connect()
             cur = conn.cursor()
@@ -106,6 +104,6 @@ class Database:
         return conn
 
 
-def start(args):
-    ds = Collector(args)
+def start():
+    ds = Collector()
     ds.run_forever()
