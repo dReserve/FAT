@@ -22,6 +22,8 @@ class Collector:
         # Setting up the database
         self.db = Database()
 
+        self.log = logging.getLogger("collector")
+
         # Setting up the event loop
         self.loop = asyncio.get_event_loop()
         for signame in ('SIGINT', 'SIGTERM'):
@@ -37,13 +39,13 @@ class Collector:
             x.track = True
             markets = x.get_markets(ROOT.Config.tracked_instruments)
             for m in markets:
-                logging.info("Tracking: {}".format(m))
+                self.log.info("Tracking {}".format(m))
                 asyncio.ensure_future(m.track())
 
-        logging.info("ROOT: {}".format(ROOT.ls()))
+        self.log.debug("ROOT: {}".format(ROOT.ls()))
 
     def ask_exit(self, signame):
-        logging.info("\nReceived signal %s, exiting." % signame)
+        self.log.info("Received signal %s, exiting." % signame)
         for task in asyncio.Task.all_tasks():
             task.cancel()
         asyncio.ensure_future(self.exit())
@@ -62,6 +64,7 @@ class Database:
     This class represents the relational database connection of the Collector.
     """
     def __init__(self):
+        self.log = logging.getLogger("database")
         self.connection = self.connect_or_init()
 
     def connect(self):
@@ -77,7 +80,7 @@ class Database:
         admin_cur.execute("SELECT 1 FROM pg_database WHERE datname=%s;",(ROOT.Config.db_name,))
 
         if not admin_cur.rowcount:
-            logging.info("Database doesn't exist, creating one.")
+            self.log.info("Database doesn't exist, creating one.")
             admin_cur.execute("CREATE DATABASE " + ROOT.Config.db_name)
 
             conn = self.connect()
@@ -94,9 +97,9 @@ class Database:
                                                 market     INT4 REFERENCES market ) ;""" )
             conn.commit()
             cur.close()
-            logging.info("New database created.")
+            self.log.info("New database created.")
         else:
-            logging.info("Database exists, creating connection.")
+            self.log.info("Database exists, creating connection.")
             conn = self.connect()
 
         admin_cur.close()

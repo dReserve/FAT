@@ -82,11 +82,12 @@ def startup():
 
     # Setting up logging
     logging.basicConfig(level=getattr(logging, args.log_level.upper()),
-                        format='%(levelname)s: %(message)s')
+                        format='%(asctime)s %(levelname).1s %(name)s: %(message)s')
+    log = logging.getLogger("cli")
 
     if len(args.tracked_instruments) < 2: raise ConfigError('tracked_instruments', "Collector needs at least two instrument.")
     if len(args.tracked_exchanges) < 1: raise ConfigError('tracked_exchanges', "Collector needs at least one exchange to track.")
-    logging.info("Command line arguments parsed.")
+    log.info("Command line arguments parsed.")
 
     # Mounting the config to the ROOT
     ROOT.Config = args
