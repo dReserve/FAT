@@ -83,7 +83,7 @@ class Database:
             conn = self.connect()
             cur = conn.cursor()
             cur.execute("""CREATE TABLE market (id SERIAL PRIMARY KEY,
-                                                code VARCHAR(16),
+                                                code VARCHAR(16) UNIQUE,
                                                 last INT8);""")
 
             cur.execute("""CREATE TABLE trade ( price      FLOAT8,

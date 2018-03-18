@@ -1,7 +1,7 @@
 """
 This module define the exchanges representable in FATStack.
 """
-from .tree import *
+from .tree import Node
 import asyncio
 import logging
 import fatstack.core
@@ -18,13 +18,23 @@ class Exchange(Node):
 class Market:
     "A tradable instument Pair on an Exchange."
     def __init__(self, exchange, base, quote, api_name):
+        ROOT = fatstack.core.ROOT
         self.exchange = exchange
         self.base = base
         self.quote = quote
+        self.code = str(self.exchange) + '_' + str(self.base) + '_' + str(self.quote)
         self.api_name = api_name
 
+        cursor = ROOT.Collector.db.connection.cursor()
+        cursor.execute("""INSERT INTO market (code, last) VALUES (%s, %s)
+                            ON CONFLICT DO NOTHING;""", (self.code, 0))
+        cursor.execute("SELECT id FROM market WHERE code=%s;", (self.code,))
+        self.db_id = cursor.fetchone()[0]
+        ROOT.Collector.db.connection.commit()
+        cursor.close()
+
     def __str__(self):
-        return "{}_{}_{}".format(self.base, self.quote, self.exchange)
+        return "{}".format(self.code)
 
     def __repr__(self):
         return "<Market exchange: {}, base: {}, quote: {}, api_name: {}>".format(self.exchange, self.base,
@@ -32,6 +42,7 @@ class Market:
 
     async def track(self):
         ROOT = fatstack.core.ROOT
+
         while True:
             logging.info("Inside {}s tracker @{} .".format(self, ROOT.Collector.loop.time()))
             await asyncio.sleep(ROOT.Config.timeout)
