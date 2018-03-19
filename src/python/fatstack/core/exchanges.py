@@ -25,6 +25,8 @@ class Market:
         self.code = str(self.exchange) + '_' + str(self.base) + '_' + str(self.quote)
         self.api_name = api_name
 
+        self.log = logging.getLogger(self.code)
+
         cursor = ROOT.Collector.db.connection.cursor()
         cursor.execute("""INSERT INTO market (code, last) VALUES (%s, %s)
                             ON CONFLICT DO NOTHING;""", (self.code, 0))
@@ -43,13 +45,10 @@ class Market:
                 self.quote, self.api_name)
 
     async def track(self):
-        ROOT = fatstack.core.ROOT
-
         while True:
-            self.exchange.collect_trades(self)
-            await asyncio.sleep(ROOT.Config.timeout)
-        return False
-
+            self.log.debug("Fetching trades")
+            trades = await self.exchange.fetch_trades(self)
+            # Sleep if last is closer than update freq
 
 # Exchanges
 class KRAKEN(Exchange):
@@ -70,8 +69,10 @@ class KRAKEN(Exchange):
 
         import krakenex    # TO DO: Remove this from here.
         self.api = krakenex.API()
-        self.last_api_call = 0
-        self.track = False
+        self.api_call_rate_limit = 6
+
+        loop = asyncio.get_event_loop()
+        self.last_api_call = loop.time()
 
     def get_markets(self, instruments):
         insts = {i.code: i for i in instruments}
@@ -91,30 +92,25 @@ class KRAKEN(Exchange):
 
         return markets
 
-    def collect_trades(self, market):
+    async def fetch_trades(self, market):
         loop = asyncio.get_event_loop()
-        start = loop.time()
-        delta = start - self.last_api_call
+        delta = loop.time() - self.last_api_call
+
         self.log.debug("Schedueling delta: {:.3f}".format(delta))
-        if delta < 2:
-            start = self.last_api_call + 2
-        self.last_api_call = start
-        loop.call_at(start, self._do_collect_trades, market)
-        self.log.debug("Scheduling API call at {} for {} .".format(self.last_api_call, market.code))
 
-    def _do_collect_trades(self, market):
-        loop = asyncio.get_event_loop()
-        self.log.debug("API call at {} for {} .".format(loop.time(), market.code))
-        raw_trades = self.api.query_public('Trades',
-                                      {'pair':market.api_name, 'since':market.last_trade})
-        if len(raw_trades['error']) == 0:
-            trades = raw_trades['result'][market.api_name]
-            self.log.info("Collected {} trades from {} .".format(len(trades), market.code))
+        if delta < self.api_call_rate_limit:
+            self.last_api_call += self.api_call_rate_limit
+            await asyncio.sleep(self.last_api_call - loop.time())
         else:
-            self.log.error(raw_trades['error'])
+            self.last_api_call = loop.time()
 
-    async def api_scheduler(self, timeout):
-        while True:
-            await asyncio.sleep(timeout)
-            self.log.info("Inside {}s scheduler.".format(self.code))
-        return False
+        res = await loop.run_in_executor(None, self.api.query_public, 'Trades',
+                                        {'pair':market.api_name, 'since':market.last_trade})
+
+        if len(res['error']) == 0:
+            trades = res['result'][market.api_name]
+            self.log.info("Fetched {} trades from {} .".format(len(trades), market.code))
+        else:
+            self.log.error(res['error'])
+
+        return trades

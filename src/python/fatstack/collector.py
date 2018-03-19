@@ -38,9 +38,9 @@ class Collector:
         for x in ROOT.Config.tracked_exchanges:
             x.track = True
             markets = x.get_markets(ROOT.Config.tracked_instruments)
-            for m in markets:
-                self.log.info("Tracking {}".format(m))
-                asyncio.ensure_future(m.track())
+            for market in markets:
+                self.log.info("Tracking {}".format(market))
+                asyncio.ensure_future(market.track())
 
         self.log.debug("ROOT: {}".format(ROOT.ls()))
 
