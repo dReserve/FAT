@@ -6,19 +6,19 @@ import asyncio
 import logging
 import fatstack.core
 
-# Base classes
+
 class Exchange(Node):
-    "An exchange that provides a API for trading."
+    "An exchange that provides an API for trading."
     def __str__(self):
         return self.code
 
     def __repr__(self):
         return "<Exchange code: {}>".format(self.code)
 
+
 class Market:
     "A tradable instument Pair on an Exchange."
     def __init__(self, exchange, base, quote, api_name):
-        ROOT = fatstack.core.ROOT
         self.exchange = exchange
         self.base = base
         self.quote = quote
@@ -27,30 +27,32 @@ class Market:
 
         self.log = logging.getLogger(self.code)
 
-        cursor = ROOT.Collector.db.connection.cursor()
-        cursor.execute("""INSERT INTO market (code, last) VALUES (%s, %s)
-                            ON CONFLICT DO NOTHING;""", (self.code, 0))
-        cursor.execute("SELECT id, last FROM market WHERE code=%s;", (self.code,))
-        result = cursor.fetchone()
-        self.db_id = result[0]
-        self.last_trade = result[1]
-        ROOT.Collector.db.connection.commit()
-        cursor.close()
+        res = asyncio.get_event_loop().run_until_complete(self.init_market_table())
+        self.db_id = res[0]
+        self.last_trade = res[1]
+
+    async def init_market_table(self):
+        con = fatstack.core.ROOT.Collector.db.con
+        await con.execute("""INSERT INTO market (code, last) VALUES ($1, $2)
+                             ON CONFLICT DO NOTHING;""", self.code, 0)
+        res = await con.execute("SELECT id, last FROM market WHERE code=$1;", self.code)
+        return res
 
     def __str__(self):
         return "{}".format(self.code)
 
     def __repr__(self):
-        return "<Market exchange: {}, base: {}, quote: {}, api_name: {}>".format(self.exchange, self.base,
-                self.quote, self.api_name)
+        return "<Market exchange: {}, base: {}, quote: {}>".format(self.exchange, self.base,
+                                                                   self.quote)
 
     async def track(self):
         while True:
             self.log.debug("Fetching trades")
             trades = await self.exchange.fetch_trades(self)
+
             # Sleep if last is closer than update freq
 
-# Exchanges
+
 class KRAKEN(Exchange):
     "The Kraken cryptocurrency exchange."
     def __init__(self):
@@ -61,7 +63,7 @@ class KRAKEN(Exchange):
         self.alt_names = {
             'BTC': ('XXBT', 'XBT'),
             'USD': ('ZUSD',),
-            'ETH': ('XETH',) }
+            'ETH': ('XETH',)}
         self.alt_names_map = {}
         for code, alts in self.alt_names.items():
             for alt in alts:
@@ -104,8 +106,9 @@ class KRAKEN(Exchange):
         else:
             self.last_api_call = loop.time()
 
+        # We need to run the krakenex code in executor to maintain asyncron behaviour
         res = await loop.run_in_executor(None, self.api.query_public, 'Trades',
-                                        {'pair':market.api_name, 'since':market.last_trade})
+                                         {'pair': market.api_name, 'since': market.last_trade})
 
         if len(res['error']) == 0:
             trades = res['result'][market.api_name]

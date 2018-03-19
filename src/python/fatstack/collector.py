@@ -6,13 +6,14 @@ it to other FATStack processes.
 """
 
 import fatstack.core
-import psycopg2
+import asyncpg
 import asyncio
 import signal
 import functools
 import logging
 
 ROOT = fatstack.core.ROOT
+
 
 class Collector:
     def __init__(self):
@@ -22,13 +23,13 @@ class Collector:
         # Setting up the database
         self.db = Database()
 
-        self.log = logging.getLogger("collector")
+        self.log = logging.getLogger("Collector")
 
         # Setting up the event loop
         self.loop = asyncio.get_event_loop()
         for signame in ('SIGINT', 'SIGTERM'):
             self.loop.add_signal_handler(getattr(signal, signame),
-                    functools.partial(self.ask_exit, signame))
+                                         functools.partial(self.ask_exit, signame))
 
         # Setting the 'track' flag for Instruments
         for i in ROOT.Config.tracked_instruments:
@@ -59,53 +60,60 @@ class Collector:
         finally:
             self.loop.close()
 
+
 class Database:
     """
     This class represents the relational database connection of the Collector.
     """
     def __init__(self):
-        self.log = logging.getLogger("database")
-        self.connection = self.connect_or_init()
+        self.log = logging.getLogger("Database")
+        self.con = asyncio.get_event_loop().run_until_complete(self.connect_or_init())
 
-    def connect(self):
-        return psycopg2.connect(dbname=ROOT.Config.db_name, user=ROOT.Config.db_user,
-                                host='localhost', password=ROOT.Config.db_pwd)
+    async def connect(self):
+        return await asyncpg.connect(
+            database=ROOT.Config.db_name,
+            user=ROOT.Config.db_user,
+            host='localhost',
+            password=ROOT.Config.db_pwd)
 
-    def connect_or_init(self):
+    async def connect_or_init(self):
         # Connect to an database that's surely exists.
-        admin_conn = psycopg2.connect(dbname='postgres', user=ROOT.Config.db_user, host='localhost',
-                                    password=ROOT.Config.db_pwd)
-        admin_conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-        admin_cur = admin_conn.cursor()
-        admin_cur.execute("SELECT 1 FROM pg_database WHERE datname=%s;",(ROOT.Config.db_name,))
+        admin_con = await asyncpg.connect(
+            database='postgres',
+            user=ROOT.Config.db_user,
+            host='localhost',
+            password=ROOT.Config.db_pwd)
 
-        if not admin_cur.rowcount:
+        res = await admin_con.fetch(
+            "SELECT 1 FROM pg_database WHERE datname=$1", ROOT.Config.db_name)
+
+        self.log.info(type(res))
+
+        if not res:
             self.log.info("Database doesn't exist, creating one.")
-            admin_cur.execute("CREATE DATABASE " + ROOT.Config.db_name)
+            await admin_con.execute("CREATE DATABASE {}".format(ROOT.Config.db_name))
 
-            conn = self.connect()
-            cur = conn.cursor()
-            cur.execute("""CREATE TABLE market (id SERIAL PRIMARY KEY,
-                                                code VARCHAR(16) UNIQUE,
-                                                last INT8);""")
+            con = await self.connect()
 
-            cur.execute("""CREATE TABLE trade ( price      FLOAT8,
-                                                volume     FLOAT8,
-                                                time       FLOAT8,
-                                                is_buy     BOOL,
-                                                is_limit   BOOL,
-                                                market     INT4 REFERENCES market ) ;""" )
-            conn.commit()
-            cur.close()
+            async with con.transaction():
+                await con.execute("""CREATE TABLE market (id SERIAL PRIMARY KEY,
+                                                    code VARCHAR(16) UNIQUE,
+                                                    last INT8)""")
+
+                await con.execute("""CREATE TABLE trade ( price      FLOAT8,
+                                                    volume     FLOAT8,
+                                                    time       FLOAT8,
+                                                    is_buy     BOOL,
+                                                    is_limit   BOOL,
+                                                    market     INT4 REFERENCES market )""")
+
             self.log.info("New database created.")
         else:
             self.log.info("Database exists, creating connection.")
-            conn = self.connect()
+            con = await self.connect()
 
-        admin_cur.close()
-        admin_conn.close()
-
-        return conn
+        await admin_con.close()
+        return con
 
 
 def start():
