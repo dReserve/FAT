@@ -4,7 +4,9 @@ This module define the exchanges representable in FATStack.
 from .tree import Node
 import asyncio
 import logging
+import pandas as pd
 import fatstack.core
+import time
 
 
 class Exchange(Node):
@@ -35,7 +37,7 @@ class Market:
         con = fatstack.core.ROOT.Collector.db.con
         await con.execute("""INSERT INTO market (code, last) VALUES ($1, $2)
                              ON CONFLICT DO NOTHING;""", self.code, 0)
-        res = await con.execute("SELECT id, last FROM market WHERE code=$1;", self.code)
+        res = await con.fetchrow("SELECT id, last FROM market WHERE code=$1;", self.code)
         return res
 
     def __str__(self):
@@ -46,11 +48,20 @@ class Market:
                                                                    self.quote)
 
     async def track(self):
+        con = fatstack.core.ROOT.Collector.db.con
         while True:
-            self.log.debug("Fetching trades")
+            self.log.info("Fetching trades since {}".format(
+                    time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime(self.last_trade / 1e9))))
             trades = await self.exchange.fetch_trades(self)
-
-            # Sleep if last is closer than update freq
+            if trades is not None:
+                last_trade = trades[1]
+                records = list(trades[0].itertuples(index=False))
+                async with con.transaction():
+                    await con.copy_records_to_table('trade', records=records)
+                    await con.execute(
+                            "UPDATE market SET last = $1 WHERE id = $2",
+                            last_trade, self.db_id)
+                self.last_trade = last_trade
 
 
 class KRAKEN(Exchange):
@@ -73,8 +84,7 @@ class KRAKEN(Exchange):
         self.api = krakenex.API()
         self.api_call_rate_limit = 6
 
-        loop = asyncio.get_event_loop()
-        self.last_api_call = loop.time()
+        self.last_api_call = asyncio.get_event_loop().time()
 
     def get_markets(self, instruments):
         insts = {i.code: i for i in instruments}
@@ -107,13 +117,23 @@ class KRAKEN(Exchange):
             self.last_api_call = loop.time()
 
         # We need to run the krakenex code in executor to maintain asyncron behaviour
-        res = await loop.run_in_executor(None, self.api.query_public, 'Trades',
-                                         {'pair': market.api_name, 'since': market.last_trade})
+        res = await loop.run_in_executor(
+                None, self.api.query_public, 'Trades',
+                {'pair': market.api_name, 'since': str(market.last_trade)})
 
         if len(res['error']) == 0:
-            trades = res['result'][market.api_name]
+            last_id = int(res['result']['last'])
+            res = res['result'][market.api_name]
+            trades = pd.DataFrame(
+                res, columns=['price', 'volume', 'time', 'buy', 'limit', 'misc'])
+            del trades['misc']
+            trades['price'] = trades['price'].map(lambda x: float(x))
+            trades['volume'] = trades['volume'].map(lambda x: float(x))
+            trades['buy'] = trades['buy'].map(lambda x: x is 'b')
+            trades['limit'] = trades['limit'].map(lambda x: x is 'l')
+            trades['market'] = market.db_id
             self.log.info("Fetched {} trades from {} .".format(len(trades), market.code))
+            return trades, last_id
         else:
             self.log.error(res['error'])
-
-        return trades
+            return None

@@ -4,6 +4,7 @@ import logging
 import fatstack.core
 ROOT = fatstack.core.ROOT
 
+
 class ConfigError(Exception):
     """Exception raised for errors in the config.
 
@@ -15,6 +16,7 @@ class ConfigError(Exception):
     def __init__(self, config_var, message):
         self.config_var = config_var
         self.message = message
+
 
 def startup():
     """
@@ -33,47 +35,50 @@ def startup():
 
     # The shell parser
     shell_parser = subparsers.add_parser(
-            name = "shell",
+            name="shell",
             aliases=['sh'],
-            description = "Allows to give commands to traders.",
-            help = "Starts a trader process." )
+            description="Allows to give commands to traders.",
+            help="Starts a trader process.")
 
     shell_parser.set_defaults(func=shell)
 
     # The collector parser
     collector_parser = subparsers.add_parser(
-            name = "collector",
+            name="collector",
             aliases=['co'],
-            description = "Collects and stores trade data from exchanges and serves this to simulators.",
-            help = "Starts a collector process." )
+            description="Collects and stores trade data from exchanges and serves this to simulators.",
+            help="Starts a collector process.")
 
     collector_parser.add_argument('--db-name', default='fatstack')
     collector_parser.add_argument('--db-user', default='postgres')
     collector_parser.add_argument('--db-pwd')
-    collector_parser.add_argument('--instruments', '-i', nargs='+', dest='tracked_instruments',
-            type=inst, help="Space separated list of supported instuments to track.", default=[])
-    collector_parser.add_argument('--exchanges', '-x', nargs='+', dest='tracked_exchanges',
-            type=exch, help="Space separated list of supported exchanges to track.", default=[])
-    collector_parser.add_argument('--timeout', '-t', type=int, help="Tracking timeout.", default=2)
+    collector_parser.add_argument(
+            '--instruments', '-i', nargs='+', dest='tracked_instruments', type=inst,
+            help="Space separated list of supported instuments to track.", default=[])
+    collector_parser.add_argument(
+            '--exchanges', '-x', nargs='+', dest='tracked_exchanges', type=exch,
+            help="Space separated list of supported exchanges to track.", default=[])
+    collector_parser.add_argument(
+            '--timeout', '-t', type=int, help="Tracking timeout.", default=2)
 
     collector_parser.set_defaults(func=collector)
 
     # The brain parser
     simulator_parser = subparsers.add_parser(
-            name = "brain",
+            name="brain",
             aliases=['br'],
-            description = "Processes trade data into timeframes and allows analysis on these.",
-            help = "Starts a brain process." )
+            description="Processes trade data into timeframes and allows analysis on these.",
+            help="Starts a brain process.")
 
     simulator_parser.set_defaults(func=brain)
 
     # The trader parser.
     trader_parser = subparsers.add_parser(
-            name = "trader",
+            name="trader",
             aliases=['tr'],
-            description = ( "Connects to exchanges and blockchain accounts and manages trades and"
-                            "balances on them." ),
-            help = "Starts a trader process." )
+            description=("Connects to exchanges and blockchain accounts and manages trades and"
+                         "balances on them."),
+            help="Starts a trader process.")
 
     trader_parser.set_defaults(func=trader)
 
@@ -83,10 +88,12 @@ def startup():
     # Setting up logging
     logging.basicConfig(level=getattr(logging, args.log_level.upper()),
                         format='%(asctime)s %(levelname).1s %(name)s: %(message)s')
-    log = logging.getLogger("cli")
+    log = logging.getLogger("Cli")
 
-    if len(args.tracked_instruments) < 2: raise ConfigError('tracked_instruments', "Collector needs at least two instrument.")
-    if len(args.tracked_exchanges) < 1: raise ConfigError('tracked_exchanges', "Collector needs at least one exchange to track.")
+    if len(args.tracked_instruments) < 2:
+        raise ConfigError('tracked_instruments', "Collector needs at least two instrument.")
+    if len(args.tracked_exchanges) < 1:
+        raise ConfigError('tracked_exchanges', "Collector needs at least one exchange to track.")
     log.info("Command line arguments parsed.")
 
     # Mounting the config to the ROOT

@@ -87,8 +87,6 @@ class Database:
         res = await admin_con.fetch(
             "SELECT 1 FROM pg_database WHERE datname=$1", ROOT.Config.db_name)
 
-        self.log.info(type(res))
-
         if not res:
             self.log.info("Database doesn't exist, creating one.")
             await admin_con.execute("CREATE DATABASE {}".format(ROOT.Config.db_name))
