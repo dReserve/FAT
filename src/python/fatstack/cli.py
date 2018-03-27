@@ -2,6 +2,7 @@ import argparse
 import logging
 
 import fatstack.core
+
 ROOT = fatstack.core.ROOT
 
 
@@ -26,7 +27,9 @@ def startup():
     """
 
     # The main command line argument parser
-    parser = argparse.ArgumentParser(description="The dReserve project's Fundamental Algorithmic Trader.")
+    parser = argparse.ArgumentParser(
+        description="The dReserve project's Fundamental Algorithmic Trader.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     subparsers = parser.add_subparsers()
 
     # The default command is the shell.
@@ -38,7 +41,7 @@ def startup():
             name="shell",
             aliases=['sh'],
             description="Allows to give commands to traders.",
-            help="Starts a trader process.")
+            help="Starts an interactive shell.")
 
     shell_parser.set_defaults(func=shell)
 
@@ -47,10 +50,13 @@ def startup():
             name="collector",
             aliases=['co'],
             description="Collects and stores trade data from exchanges and serves this to simulators.",
-            help="Starts a collector process.")
+            help="Starts a collector process.",
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    collector_parser.add_argument('--db-name', default='fatstack')
-    collector_parser.add_argument('--db-user', default='postgres')
+    collector_parser.add_argument('--db-name', default='fatstack',
+                                  help="Name of the relational database.")
+    collector_parser.add_argument('--db-user', default='postgres',
+                                  help="Username for the relational database connection.")
     collector_parser.add_argument('--db-pwd')
     collector_parser.add_argument(
             '--instruments', '-i', nargs='+', dest='tracked_instruments', type=inst,
@@ -114,6 +120,7 @@ def inst(i):
     except KeyError:
         msg = "Not a valid instrument: {} .".format(i)
         raise argparse.ArgumentTypeError(msg)
+
 
 def exch(x):
     """
