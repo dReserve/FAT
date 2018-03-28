@@ -11,6 +11,7 @@ import time
 
 class Exchange(Node):
     "An exchange that provides an API for trading."
+
     def __str__(self):
         return self.code
 
@@ -20,6 +21,7 @@ class Exchange(Node):
 
 class Market:
     "A tradable instument Pair on an Exchange."
+
     def __init__(self, exchange, base, quote, api_name):
         self.exchange = exchange
         self.base = base
@@ -51,7 +53,7 @@ class Market:
         con = fatstack.core.ROOT.Collector.db.con
         while True:
             self.log.info("Fetching trades since {}".format(
-                    time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime(self.last_trade / 1e9))))
+                    time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(self.last_trade / 1e9))))
             trades = await self.exchange.fetch_trades(self)
             if trades is not None:
                 last_trade = trades[1]
@@ -66,6 +68,7 @@ class Market:
 
 class KRAKEN(Exchange):
     "The Kraken cryptocurrency exchange."
+
     def __init__(self):
         self.code = self.__class__.__name__
 
@@ -117,9 +120,13 @@ class KRAKEN(Exchange):
             self.last_api_call = loop.time()
 
         # We need to run the krakenex code in executor to maintain asyncron behaviour
-        res = await loop.run_in_executor(
-                None, self.api.query_public, 'Trades',
-                {'pair': market.api_name, 'since': str(market.last_trade)})
+        try:
+            res = await loop.run_in_executor(
+                    None, self.api.query_public, 'Trades',
+                    {'pair': market.api_name, 'since': str(market.last_trade)})
+        except Exception as e:
+            self.log.error(repr(e))
+            return None
 
         if len(res['error']) == 0:
             last_id = int(res['result']['last'])
