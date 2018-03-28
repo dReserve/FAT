@@ -35,6 +35,8 @@ def startup():
     # The default command is the shell.
     parser.set_defaults(func=shell)
     parser.add_argument('-L', '--log-level', default='INFO', help="logging level", metavar='LEVEL')
+    parser.add_argument('--version', action='version',
+                        version="FATStack {}".format(fatstack.core.__version__))
 
     # The shell parser
     shell_parser = subparsers.add_parser(
