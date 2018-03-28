@@ -35,6 +35,7 @@ def startup():
     # The default command is the shell.
     parser.set_defaults(func=shell)
     parser.add_argument('-L', '--log-level', default='INFO', help="logging level", metavar='LEVEL')
+    parser.add_argument('-l', '--log-file', default='fats.log', help="log file name", metavar='FILE')
     parser.add_argument('--version', action='version',
                         version="FATStack {}".format(fatstack.core.__version__))
 
@@ -94,7 +95,8 @@ def startup():
     args = parser.parse_args()
 
     # Setting up logging
-    logging.basicConfig(level=getattr(logging, args.log_level.upper()),
+    logging.basicConfig(filename=args.log_file,
+                        level=getattr(logging, args.log_level.upper()),
                         format='%(asctime)s %(levelname).1s %(name)s: %(message)s')
     log = logging.getLogger("Cli")
 
