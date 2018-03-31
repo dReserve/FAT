@@ -31,17 +31,13 @@ class Collector:
             self.loop.add_signal_handler(getattr(signal, signame),
                                          functools.partial(self.ask_exit, signame))
 
-        # Setting the 'track' flag for Instruments
-        for i in ROOT.Config.tracked_instruments:
-            i.track = True
+        # Start instrument tracking
+        for instrument in ROOT.Config.tracked_instruments:
+            instrument.start_tracking()
 
-        # Setting up tracked Exchanges
-        for x in ROOT.Config.tracked_exchanges:
-            x.track = True
-            markets = x.get_markets(ROOT.Config.tracked_instruments)
-            for market in markets:
-                self.log.info("Tracking {}".format(market))
-                asyncio.ensure_future(market.track())
+        # Start exchange tracking
+        for exchange in ROOT.Config.tracked_exchanges:
+            exchange.start_tracking(ROOT.Config.tracked_instruments)
 
         self.log.debug("ROOT: {}".format(ROOT.ls()))
 
@@ -65,6 +61,7 @@ class Database:
     """
     This class represents the relational database connection of the Collector.
     """
+
     def __init__(self):
         self.log = logging.getLogger("Database")
         self.con = asyncio.get_event_loop().run_until_complete(self.connect_or_init())

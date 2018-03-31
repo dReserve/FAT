@@ -89,6 +89,13 @@ class KRAKEN(Exchange):
 
         self.last_api_call = asyncio.get_event_loop().time()
 
+    def start_tracking(self, tracked_instruments):
+        self.track = True
+        markets = self.get_markets(tracked_instruments)
+        for market in markets:
+            self.log.info("Tracking {}".format(market))
+            asyncio.ensure_future(market.track())
+
     def get_markets(self, instruments):
         insts = {i.code: i for i in instruments}
         names = {i.code: i.code for i in instruments}
