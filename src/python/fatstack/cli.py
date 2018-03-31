@@ -1,4 +1,5 @@
 import argparse
+import os
 import logging
 
 import fatstack.core
@@ -34,10 +35,19 @@ def startup():
 
     # The default command is the shell.
     parser.set_defaults(func=shell)
+
+    # Main arguments
+    default_var_path = os.path.realpath(
+        os.path.join(os.path.dirname(fatstack.__file__), "../../../var"))
     parser.add_argument('-L', '--log-level', default='INFO', help="logging level", metavar='LEVEL')
-    parser.add_argument('-l', '--log-file', default='fats.log', help="log file name", metavar='FILE')
+    parser.add_argument('-l', '--log-file',
+                        default="fatstack.log",
+                        help="log file name", metavar='FILE')
+    parser.add_argument('-V', '--var-path',
+                        default=default_var_path,
+                        help="path to the var directory", metavar='PATH')
     parser.add_argument('--version', action='version',
-                        version="FATStack {}".format(fatstack.core.__version__))
+                        version="FATStack {}".format(fatstack.__version__))
 
     # The shell parser
     shell_parser = subparsers.add_parser(
@@ -94,8 +104,24 @@ def startup():
     # Parsing arguments
     args = parser.parse_args()
 
+    # Setting up var directory
+    if os.path.isdir(args.var_path):
+        print("Var exists.", args.var_path)
+    else:
+        print("Var doesn't exists.", args.var_path)
+        os.mkdir(args.var_path)
+
     # Setting up logging
-    logging.basicConfig(filename=args.log_file,
+
+    # Logs are hard wired to var/log/
+    log_dir_path = os.path.join(args.var_path, "log")
+    if os.path.isdir(log_dir_path):
+        print("Log dir exists.", log_dir_path)
+    else:
+        print("Log dir doesn't exists.", log_dir_path)
+        os.mkdir(log_dir_path)
+
+    logging.basicConfig(filename=os.path.join(log_dir_path, args.log_file),
                         level=getattr(logging, args.log_level.upper()),
                         format='%(asctime)s %(levelname).1s %(name)s: %(message)s')
     log = logging.getLogger("Cli")

@@ -4,14 +4,19 @@ Building blocks of the FATStack tree.
 The command shell starts with a shallow copy of a Tree called ROOT. A user can access every
 object which is attached to the ROOT.
 """
+
+
 class Node:
     "A mount point in the object hierarchy."
+
     def ls(self):
         "Lists content of the node."
         return list(self.__dict__.keys())
 
+
 class Tree(Node):
     "The FATStack Tree makes FATStack objects accessable through an object hierarchy."
+
     def __init__(self):
         from .instruments import Instrument
         from .exchanges import Exchange
@@ -25,5 +30,5 @@ class Tree(Node):
         setattr(self, name, n)
         for C in base_class.__subclasses__():
             o = C()
-            setattr(self,C.__name__, o)
+            setattr(self, C.__name__, o)
             setattr(n, C.__name__, o)
