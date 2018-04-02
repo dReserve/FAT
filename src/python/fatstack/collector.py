@@ -105,7 +105,7 @@ class Database:
 def start():
     ROOT.Sys.loop = asyncio.get_event_loop()
     Collector()
-    ROOT.Sys.Shell = fatstack.shell.Shell()
+    ROOT.Sys.Shell = fatstack.shell.Shell(ROOT.__dict__)
     try:
         ROOT.Sys.loop.run_forever()
     finally:
