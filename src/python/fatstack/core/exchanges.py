@@ -36,7 +36,7 @@ class Market:
         self.last_trade = res[1]
 
     async def init_market_table(self):
-        con = fatstack.core.ROOT.Collector.db.con
+        con = fatstack.core.ROOT.Sys.Collector.db.con
         await con.execute("""INSERT INTO market (code, last) VALUES ($1, $2)
                              ON CONFLICT DO NOTHING;""", self.code, 0)
         res = await con.fetchrow("SELECT id, last FROM market WHERE code=$1;", self.code)
@@ -50,14 +50,13 @@ class Market:
                                                                    self.quote)
 
     async def track(self):
-        con = fatstack.core.ROOT.Collector.db.con
+        con = fatstack.core.ROOT.Sys.Collector.db.con
         while True:
             self.log.info("Fetching trades since {}".format(
                     time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(self.last_trade / 1e9))))
-            trades = await self.exchange.fetch_trades(self)
+            trades, last_trade = await self.exchange.fetch_trades(self)
             if trades is not None:
-                last_trade = trades[1]
-                records = list(trades[0].itertuples(index=False))
+                records = list(trades.itertuples(index=False))
                 async with con.transaction():
                     await con.copy_records_to_table('trade', records=records)
                     await con.execute(
@@ -133,7 +132,7 @@ class KRAKEN(Exchange):
                     {'pair': market.api_name, 'since': str(market.last_trade)})
         except Exception as e:
             self.log.error(repr(e))
-            return None
+            return None, None
 
         if len(res['error']) == 0:
             last_id = int(res['result']['last'])
@@ -150,4 +149,4 @@ class KRAKEN(Exchange):
             return trades, last_id
         else:
             self.log.error(res['error'])
-            return None
+            return None, None

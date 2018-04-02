@@ -11,25 +11,22 @@ import asyncio
 import signal
 import functools
 import logging
+import fatstack.shell
 
 ROOT = fatstack.core.ROOT
 
 
 class Collector:
     def __init__(self):
-        # Mounting new Collector on ROOT
-        ROOT.Collector = self
-
+        ROOT.Sys.Collector = self
         # Setting up the database
         self.db = Database()
 
         self.log = logging.getLogger("Collector")
 
-        # Setting up the event loop
-        self.loop = asyncio.get_event_loop()
         for signame in ('SIGINT', 'SIGTERM'):
-            self.loop.add_signal_handler(getattr(signal, signame),
-                                         functools.partial(self.ask_exit, signame))
+            ROOT.Sys.loop.add_signal_handler(getattr(signal, signame),
+                                             functools.partial(self.ask_exit, signame))
 
         # Start instrument tracking
         for instrument in ROOT.Config.tracked_instruments:
@@ -49,12 +46,6 @@ class Collector:
 
     async def exit(self):
         asyncio.get_event_loop().stop()
-
-    def run_forever(self):
-        try:
-            self.loop.run_forever()
-        finally:
-            self.loop.close()
 
 
 class Database:
@@ -112,5 +103,10 @@ class Database:
 
 
 def start():
-    ds = Collector()
-    ds.run_forever()
+    ROOT.Sys.loop = asyncio.get_event_loop()
+    Collector()
+    ROOT.Sys.Shell = fatstack.shell.Shell()
+    try:
+        ROOT.Sys.loop.run_forever()
+    finally:
+        ROOT.Sys.loop.close()

@@ -23,6 +23,7 @@ class Tree(Node):
         "Creates a tree and loads it up with the defined objects."
         self.bind_codes('Instruments', Instrument)
         self.bind_codes('Exchanges', Exchange)
+        self.Sys = Node()
 
     def bind_codes(self, name, base_class):
         "Binds objects to the tree by their base class."
