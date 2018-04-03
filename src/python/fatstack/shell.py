@@ -1,4 +1,3 @@
-import readline
 import asyncio
 import fatstack.core
 from code import InteractiveConsole
@@ -8,7 +7,6 @@ ROOT = fatstack.core.ROOT
 
 
 class Shell(InteractiveConsole):
-
     def __init__(self, namespace):
         super().__init__(namespace)
         asyncio.ensure_future(self.run_shell())
