@@ -5,32 +5,30 @@ it to other FATStack processes.
 
 """
 
-import fatstack.core
+import fatstack as fs
 import asyncpg
 import asyncio
 import logging
 import fatstack.shell
 
-ROOT = fatstack.core.ROOT
-
 
 class Collector:
     def __init__(self):
-        ROOT.Sys.Collector = self
+        fs.ROOT.Sys.Collector = self
         # Setting up the database
         self.db = Database()
 
         self.log = logging.getLogger("Collector")
 
         # Start instrument tracking
-        for instrument in ROOT.Config.tracked_instruments:
+        for instrument in fs.ROOT.Config.tracked_instruments:
             instrument.start_tracking()
 
         # Start exchange tracking
-        for exchange in ROOT.Config.tracked_exchanges:
-            exchange.start_tracking(ROOT.Config.tracked_instruments)
+        for exchange in fs.ROOT.Config.tracked_exchanges:
+            exchange.start_tracking(fs.ROOT.Config.tracked_instruments)
 
-        self.log.debug("ROOT: {}".format(ROOT.ls()))
+        self.log.debug("ROOT: {}".format(fs.ROOT.ls()))
 
 
 class Database:
@@ -44,25 +42,25 @@ class Database:
 
     async def connect(self):
         return await asyncpg.connect(
-            database=ROOT.Config.db_name,
-            user=ROOT.Config.db_user,
+            database=fs.ROOT.Config.db_name,
+            user=fs.ROOT.Config.db_user,
             host='localhost',
-            password=ROOT.Config.db_pwd)
+            password=fs.ROOT.Config.db_pwd)
 
     async def connect_or_init(self):
         # Connect to an database that's surely exists.
         admin_con = await asyncpg.connect(
             database='postgres',
-            user=ROOT.Config.db_user,
+            user=fs.ROOT.Config.db_user,
             host='localhost',
-            password=ROOT.Config.db_pwd)
+            password=fs.ROOT.Config.db_pwd)
 
         res = await admin_con.fetch(
-            "SELECT 1 FROM pg_database WHERE datname=$1", ROOT.Config.db_name)
+            "SELECT 1 FROM pg_database WHERE datname=$1", fs.ROOT.Config.db_name)
 
         if not res:
             self.log.info("Database doesn't exist, creating one.")
-            await admin_con.execute("CREATE DATABASE {}".format(ROOT.Config.db_name))
+            await admin_con.execute("CREATE DATABASE {}".format(fs.ROOT.Config.db_name))
 
             con = await self.connect()
 
@@ -88,11 +86,7 @@ class Database:
 
 
 def start():
-    ROOT.Sys.loop = asyncio.get_event_loop()
+    fs.ROOT.Sys.loop = asyncio.get_event_loop()
     Collector()
-    ROOT.Sys.Shell = fatstack.shell.Shell(ROOT.__dict__)
-    fatstack.core.loop.run_loop()
-    # try:
-    #     ROOT.Sys.loop.run_forever()
-    # finally:
-    #     ROOT.Sys.loop.close()
+    fs.ROOT.Sys.shell = fatstack.shell.Shell(fs.ROOT.__dict__)
+    fatstack.loop.run_loop()

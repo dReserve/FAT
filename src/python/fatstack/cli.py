@@ -1,10 +1,10 @@
 import argparse
 import os
 import logging
+import importlib
 
-import fatstack.core
 
-ROOT = fatstack.core.ROOT
+import fatstack as fs
 
 
 class ConfigError(Exception):
@@ -26,7 +26,6 @@ def startup():
     This will be the processes ROOT tree, the namespace of every shell will be
     a shallow copy of this.
     """
-
     # The main command line argument parser
     parser = argparse.ArgumentParser(
         description="The dReserve project's Fundamental Algorithmic Trader.",
@@ -38,7 +37,7 @@ def startup():
 
     # Main arguments
     default_var_path = os.path.realpath(
-        os.path.join(os.path.dirname(fatstack.__file__), "../../../var"))
+        os.path.join(os.path.dirname(fs.__file__), "../../../var"))
     parser.add_argument('-L', '--log-level', default='INFO', help="logging level", metavar='LEVEL')
     parser.add_argument('-l', '--log-file',
                         default="fatstack.log",
@@ -47,7 +46,7 @@ def startup():
                         default=default_var_path,
                         help="path to the var directory", metavar='PATH')
     parser.add_argument('--version', action='version',
-                        version="FATStack {}".format(fatstack.__version__))
+                        version="FATStack {}".format(fs.__version__))
 
     # The shell parser
     shell_parser = subparsers.add_parser(
@@ -133,7 +132,7 @@ def startup():
     log.info("Command line arguments parsed.")
 
     # Mounting the config to the ROOT
-    ROOT.Config = args
+    fs.ROOT.Config = args
 
     # Calling the function selected by the subcommand
     args.func(args)
@@ -146,7 +145,12 @@ def inst(i):
     time.
     """
     try:
-        return getattr(ROOT.Instruments, i.upper())
+        instrument_module = importlib.import_module('fatstack.instruments.{}'.format(i.lower()))
+        instrument_class = getattr(instrument_module, i.upper())
+        instrument = instrument_class()
+        setattr(fs.ROOT, i.upper(), instrument)
+        setattr(fs.ROOT.Instruments, i.upper(), instrument)
+        return instrument
     except KeyError:
         msg = "Not a valid instrument: {} .".format(i)
         raise argparse.ArgumentTypeError(msg)
@@ -158,7 +162,12 @@ def exch(x):
     time.
     """
     try:
-        return getattr(ROOT.Exchanges, x.upper())
+        exchange_module = importlib.import_module('fatstack.exchanges.{}'.format(x.lower()))
+        exchange_class = getattr(exchange_module, x.upper())
+        exchange = exchange_class()
+        setattr(fs.ROOT, x.upper(), exchange)
+        setattr(fs.ROOT.Exchanges, x.upper(), exchange)
+        return exchange
     except KeyError:
         msg = "Not a valid exchange: {} .".format(x)
         raise argparse.ArgumentTypeError(msg)

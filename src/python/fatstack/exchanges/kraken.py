@@ -1,71 +1,10 @@
-"""
-This module define the exchanges representable in FATStack.
-"""
-from .tree import Node
-import asyncio
+import fatstack as fs
 import logging
+import asyncio
 import pandas as pd
-import fatstack.core
-import time
 
 
-class Exchange(Node):
-    "An exchange that provides an API for trading."
-
-    def __str__(self):
-        return self.code
-
-    def __repr__(self):
-        return "<Exchange code: {}>".format(self.code)
-
-
-class Market:
-    "A tradable instument Pair on an Exchange."
-
-    def __init__(self, exchange, base, quote, api_name):
-        self.exchange = exchange
-        self.base = base
-        self.quote = quote
-        self.code = str(self.exchange) + '_' + str(self.base) + '_' + str(self.quote)
-        self.api_name = api_name
-
-        self.log = logging.getLogger(self.code)
-
-        res = asyncio.get_event_loop().run_until_complete(self.init_market_table())
-        self.db_id = res[0]
-        self.last_trade = res[1]
-
-    async def init_market_table(self):
-        con = fatstack.core.ROOT.Sys.Collector.db.con
-        await con.execute("""INSERT INTO market (code, last) VALUES ($1, $2)
-                             ON CONFLICT DO NOTHING;""", self.code, 0)
-        res = await con.fetchrow("SELECT id, last FROM market WHERE code=$1;", self.code)
-        return res
-
-    def __str__(self):
-        return "{}".format(self.code)
-
-    def __repr__(self):
-        return "<Market exchange: {}, base: {}, quote: {}>".format(self.exchange, self.base,
-                                                                   self.quote)
-
-    async def track(self):
-        con = fatstack.core.ROOT.Sys.Collector.db.con
-        while True:
-            self.log.info("Fetching trades since {}".format(
-                    time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(self.last_trade / 1e9))))
-            trades, last_trade = await self.exchange.fetch_trades(self)
-            if trades is not None:
-                records = list(trades.itertuples(index=False))
-                async with con.transaction():
-                    await con.copy_records_to_table('trade', records=records)
-                    await con.execute(
-                            "UPDATE market SET last = $1 WHERE id = $2",
-                            last_trade, self.db_id)
-                self.last_trade = last_trade
-
-
-class KRAKEN(Exchange):
+class KRAKEN(fs.core.Exchange):
     "The Kraken cryptocurrency exchange."
 
     def __init__(self):
@@ -86,7 +25,7 @@ class KRAKEN(Exchange):
         self.api = krakenex.API()
         self.api_call_rate_limit = 6
 
-        self.last_api_call = asyncio.get_event_loop().time()
+        self.last_api_call = fs.loop.loop.time()
 
     def start_tracking(self, tracked_instruments):
         self.track = True
@@ -109,7 +48,7 @@ class KRAKEN(Exchange):
                     base = code
                     quote = pair[len(alt):]
                     if quote in names and names[quote] in insts:
-                        markets.append(Market(self, insts[base], insts[names[quote]], pair))
+                        markets.append(fs.core.Market(self, insts[base], insts[names[quote]], pair))
 
         return markets
 
