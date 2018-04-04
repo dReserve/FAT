@@ -8,8 +8,6 @@ it to other FATStack processes.
 import fatstack.core
 import asyncpg
 import asyncio
-import signal
-import functools
 import logging
 import fatstack.shell
 
@@ -24,10 +22,6 @@ class Collector:
 
         self.log = logging.getLogger("Collector")
 
-        for signame in ('SIGINT', 'SIGTERM'):
-            ROOT.Sys.loop.add_signal_handler(getattr(signal, signame),
-                                             functools.partial(self.ask_exit, signame))
-
         # Start instrument tracking
         for instrument in ROOT.Config.tracked_instruments:
             instrument.start_tracking()
@@ -37,15 +31,6 @@ class Collector:
             exchange.start_tracking(ROOT.Config.tracked_instruments)
 
         self.log.debug("ROOT: {}".format(ROOT.ls()))
-
-    def ask_exit(self, signame):
-        self.log.info("Received signal %s, exiting." % signame)
-        for task in asyncio.Task.all_tasks():
-            task.cancel()
-        asyncio.ensure_future(self.exit())
-
-    async def exit(self):
-        asyncio.get_event_loop().stop()
 
 
 class Database:
@@ -106,7 +91,8 @@ def start():
     ROOT.Sys.loop = asyncio.get_event_loop()
     Collector()
     ROOT.Sys.Shell = fatstack.shell.Shell(ROOT.__dict__)
-    try:
-        ROOT.Sys.loop.run_forever()
-    finally:
-        ROOT.Sys.loop.close()
+    fatstack.core.loop.run_loop()
+    # try:
+    #     ROOT.Sys.loop.run_forever()
+    # finally:
+    #     ROOT.Sys.loop.close()

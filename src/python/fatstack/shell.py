@@ -20,13 +20,7 @@ class Shell(InteractiveConsole):
             sys.ps2
         except AttributeError:
             sys.ps2 = "... "
-        cprt = 'Type "help", "copyright", "credits" or "license" for more information.'
-        if banner is None:
-            self.write("Python %s on %s\n%s\n(%s)\n" %
-                       (sys.version, sys.platform, cprt,
-                        self.__class__.__name__))
-        elif banner:
-            self.write("%s\n" % str(banner))
+        self.write("FATStack {}\n".format(fatstack.__version__))
         more = 0
         while 1:
             try:
@@ -54,6 +48,6 @@ class Shell(InteractiveConsole):
         return await asyncio.get_event_loop().run_in_executor(None, input, prompt)
 
     async def run_shell(self):
-        while True:
-            user_input = await self.interact()
-            print(user_input)
+        await self.interact()
+        exit()
+        # fatstack.core.loop.exit_loop("Exiting.")
