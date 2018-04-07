@@ -2,6 +2,7 @@ import fatstack as fs
 import logging
 import asyncio
 import pandas as pd
+import krakenex    # TO DO: Remove this from here.
 
 
 class KRAKEN(fs.core.Exchange):
@@ -21,18 +22,10 @@ class KRAKEN(fs.core.Exchange):
             for alt in alts:
                 self.alt_names_map[alt] = code
 
-        import krakenex    # TO DO: Remove this from here.
         self.api = krakenex.API()
         self.api_call_rate_limit = 6
 
-        self.last_api_call = fs.loop.loop.time()
-
-    def start_tracking(self, tracked_instruments):
-        self.track = True
-        markets = self.get_markets(tracked_instruments)
-        for market in markets:
-            self.log.info("Tracking {}".format(market))
-            asyncio.ensure_future(market.track())
+        self.last_api_call = fs.loop.time()
 
     def get_markets(self, instruments):
         insts = {i.code: i for i in instruments}

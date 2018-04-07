@@ -2,12 +2,17 @@ import asyncio
 import fatstack as fs
 from code import InteractiveConsole
 import sys
+import logging
+
+log = logging.getLogger("Shell")
 
 
 class Shell(InteractiveConsole):
     def __init__(self, namespace):
+        log.info("Initializing interactive shell.")
         super().__init__(namespace)
-        asyncio.ensure_future(self.run_shell())
+
+        fs.loop.register(self.run_shell())
 
     async def interact(self):
         try:

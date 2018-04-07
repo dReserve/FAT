@@ -30,12 +30,11 @@ def startup():
     parser = argparse.ArgumentParser(
         description="The dReserve project's Fundamental Algorithmic Trader.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    subparsers = parser.add_subparsers()
 
     # The default command is the shell.
     parser.set_defaults(func=shell)
 
-    # Main arguments
+    # General arguments
     default_var_path = os.path.realpath(
         os.path.join(os.path.dirname(fs.__file__), "../../../var"))
     parser.add_argument('-L', '--log-level', default='INFO', help="logging level", metavar='LEVEL')
@@ -48,58 +47,32 @@ def startup():
     parser.add_argument('--version', action='version',
                         version="FATStack {}".format(fs.__version__))
 
-    # The shell parser
-    shell_parser = subparsers.add_parser(
-            name="shell",
-            aliases=['sh'],
-            description="Allows to give commands to traders.",
-            help="Starts an interactive shell.")
+    parser.add_argument(
+            '-i', '--instruments', nargs='+', type=inst, default=[],
+            help="Space separated list of instuments to track.")
+    parser.add_argument(
+            '-x', '--exchanges', nargs='+', type=exch, default=[],
+            help="Space separated list of exchanges to track.")
+    parser.add_argument(
+            '-t', '--track-interval', type=int, help="Tracking interval in seconds.", default=60)
 
-    shell_parser.set_defaults(func=shell)
+    # Modules
+    parser.add_argument('-C', '--collector', nargs='?', default=False, const=True,
+                        help="Collector address.")
+    parser.add_argument('-B', '--brain', default='',
+                        help="Brain address.")
+    parser.add_argument('-T', '--trader', default='',
+                        help="Trader address.")
+    parser.add_argument('-S', '--no-shell', default=False, action='store_true',
+                        help="Don't run interactive shell.")
 
-    # The collector parser
-    collector_parser = subparsers.add_parser(
-            name="collector",
-            aliases=['co'],
-            description="Collects and stores trade data from exchanges and serves this to simulators.",
-            help="Starts a collector process.",
-            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    # Collector arguments
+    parser.add_argument('-D', '--collector-database', default='postgres@localhost/fatstack',
+                        help="The collector's database connection string.")
 
-    collector_parser.add_argument('--db-name', default='fatstack',
-                                  help="Name of the relational database.")
-    collector_parser.add_argument('--db-user', default='postgres',
-                                  help="Username for the relational database connection.")
-    collector_parser.add_argument('--db-pwd')
-    collector_parser.add_argument(
-            '--instruments', '-i', nargs='+', dest='tracked_instruments', type=inst,
-            help="Space separated list of supported instuments to track.", default=[])
-    collector_parser.add_argument(
-            '--exchanges', '-x', nargs='+', dest='tracked_exchanges', type=exch,
-            help="Space separated list of supported exchanges to track.", default=[])
-    collector_parser.add_argument(
-            '--timeout', '-t', type=int, help="Tracking timeout.", default=2)
-
-    collector_parser.set_defaults(func=collector)
-
-    # The brain parser
-    simulator_parser = subparsers.add_parser(
-            name="brain",
-            aliases=['br'],
-            description="Processes trade data into timeframes and allows analysis on these.",
-            help="Starts a brain process.")
-
-    simulator_parser.set_defaults(func=brain)
-
-    # The trader parser.
-    trader_parser = subparsers.add_parser(
-            name="trader",
-            aliases=['tr'],
-            description=("Connects to exchanges and blockchain accounts and manages trades and"
-                         "balances on them."),
-            help="Starts a trader process.")
-
-    trader_parser.set_defaults(func=trader)
-
+    # Database arguments
+    parser.add_argument('--admin-database', default='postgres',
+                        help="Omnipresent database to connect to during database creation.")
     # Parsing arguments
     args = parser.parse_args()
 
@@ -123,19 +96,32 @@ def startup():
     logging.basicConfig(filename=os.path.join(log_dir_path, args.log_file),
                         level=getattr(logging, args.log_level.upper()),
                         format='%(asctime)s %(levelname).1s %(name)s: %(message)s')
-    log = logging.getLogger("Cli")
+    log = logging.getLogger("fats")
 
-    if len(args.tracked_instruments) < 2:
-        raise ConfigError('tracked_instruments', "Collector needs at least two instrument.")
-    if len(args.tracked_exchanges) < 1:
-        raise ConfigError('tracked_exchanges', "Collector needs at least one exchange to track.")
-    log.info("Command line arguments parsed.")
+    # if len(args.instruments) < 2:
+    #     log.error("Not enough instruments specified.")
+    #     raise ConfigError('tracked_instruments', "FATStack needs at least two instrument.")
+    # if len(args.exchanges) < 1:
+    #     log.error("No exchange specified.")
+    #     raise ConfigError('tracked_exchanges', "FATStack needs at least one exchange to track.")
+    # log.info("Command line arguments parsed.")
 
     # Mounting the config to the ROOT
     fs.ROOT.Config = args
 
-    # Calling the function selected by the subcommand
-    args.func(args)
+    # Initializing the event loop
+    fs.loop.init()
+
+    if args.collector:
+        import fatstack.collector
+        fatstack.collector.init(args.collector)
+
+    if not args.no_shell:
+        import fatstack.shell
+        fs.ROOT.Sys.shell = fatstack.shell.Shell(fs.ROOT.__dict__)
+
+    log.info("Starting event loop.")
+    fs.loop.finish_all()
 
 
 # Special type converters for FATS specific command line arguments.
@@ -151,7 +137,7 @@ def inst(i):
         setattr(fs.ROOT, i.upper(), instrument)
         setattr(fs.ROOT.Instruments, i.upper(), instrument)
         return instrument
-    except KeyError:
+    except ModuleNotFoundError:
         msg = "Not a valid instrument: {} .".format(i)
         raise argparse.ArgumentTypeError(msg)
 

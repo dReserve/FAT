@@ -1,21 +1,50 @@
+import fatstack as fs
 import asyncio
 import logging
 import atexit
 import signal
 import functools
+import sys
+
+loop = sys.modules[__name__]
 
 log = logging.getLogger("Loop")
-loop = asyncio.get_event_loop()
+event_loop = asyncio.get_event_loop()
 
 
-def run_loop():
+def init():
+    fs.ROOT.Sys.loop = loop
     atexit.register(exit_loop, 'Exiting.')
     for signame in ('SIGINT', 'SIGTERM'):
-        loop.add_signal_handler(getattr(signal, signame),
-                                functools.partial(halt_by_signal,
-                                                  "Received signal {}, exiting.".format(signame)))
+        add_signal_handler(getattr(signal, signame),
+                           functools.partial(halt_by_signal,
+                                             "Received signal {}, exiting.".format(signame)))
+
+
+def register(task):
+    asyncio.ensure_future(task)
+
+
+def finish(task):
+    event_loop.run_until_complete(task)
+
+
+def finish_all():
+    """ Finish all registered tasks. """
     pending = asyncio.Task.all_tasks()
-    loop.run_until_complete(asyncio.gather(*pending))
+    loop.finish(asyncio.gather(*pending))
+
+
+def time():
+    return event_loop.time()
+
+
+def add_signal_handler(signum, callback, *args):
+    event_loop.add_signal_handler(signum, callback, *args)
+
+
+def remove_signal_handler(signum):
+    event_loop.remove_signal_handler(signum)
 
 
 def halt_by_signal(message):

@@ -65,6 +65,12 @@ class Pair:
 class Exchange(Node):
     "An exchange that provides an API for trading."
 
+    def start_tracking(self, instruments):
+        self.track = True
+        for market in self.get_markets(instruments):
+            self.log.info("Tracking {}".format(market))
+            fs.loop.register(market.track())
+
     def __str__(self):
         return self.code
 
@@ -89,10 +95,10 @@ class Market:
         self.last_trade = res[1]
 
     async def init_market_table(self):
-        con = fs.ROOT.Sys.Collector.db.con
-        await con.execute("""INSERT INTO market (code, last) VALUES ($1, $2)
+        conn = fs.ROOT.Sys.collector.db.conn
+        await conn.execute("""INSERT INTO market (code, last) VALUES ($1, $2)
                              ON CONFLICT DO NOTHING;""", self.code, 0)
-        res = await con.fetchrow("SELECT id, last FROM market WHERE code=$1;", self.code)
+        res = await conn.fetchrow("SELECT id, last FROM market WHERE code=$1;", self.code)
         return res
 
     def __str__(self):
@@ -103,16 +109,16 @@ class Market:
                                                                    self.quote)
 
     async def track(self):
-        con = fs.ROOT.Sys.Collector.db.con
+        conn = fs.ROOT.Sys.collector.db.conn
         while True:
             self.log.info("Fetching trades since {}".format(
                     time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(self.last_trade / 1e9))))
             trades, last_trade = await self.exchange.fetch_trades(self)
             if trades is not None:
                 records = list(trades.itertuples(index=False))
-                async with con.transaction():
-                    await con.copy_records_to_table('trade', records=records)
-                    await con.execute(
+                async with conn.transaction():
+                    await conn.copy_records_to_table('trade', records=records)
+                    await conn.execute(
                             "UPDATE market SET last = $1 WHERE id = $2",
                             last_trade, self.db_id)
                 self.last_trade = last_trade
