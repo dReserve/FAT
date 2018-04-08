@@ -8,7 +8,7 @@ import sys
 
 loop = sys.modules[__name__]
 
-log = logging.getLogger("Loop")
+log = logging.getLogger(__name__)
 event_loop = asyncio.get_event_loop()
 
 

@@ -1,10 +1,7 @@
-import argparse
-import os
-import logging
-import importlib
-
-
+import argparse, os, logging, importlib
 import fatstack as fs
+
+log = logging.getLogger(__name__)
 
 
 class ConfigError(Exception):
@@ -20,7 +17,7 @@ class ConfigError(Exception):
         self.message = message
 
 
-def startup():
+def parse_args():
     """
     Command line parsing and startup of different modules or the entire stack.
     This will be the processes ROOT tree, the namespace of every shell will be
@@ -83,21 +80,6 @@ def startup():
         print("Var doesn't exists.", args.var_path)
         os.mkdir(args.var_path)
 
-    # Setting up logging
-
-    # Logs are hard wired to var/log/
-    log_dir_path = os.path.join(args.var_path, "log")
-    if os.path.isdir(log_dir_path):
-        print("Log dir exists.", log_dir_path)
-    else:
-        print("Log dir doesn't exists.", log_dir_path)
-        os.mkdir(log_dir_path)
-
-    logging.basicConfig(filename=os.path.join(log_dir_path, args.log_file),
-                        level=getattr(logging, args.log_level.upper()),
-                        format='%(asctime)s %(levelname).1s %(name)s: %(message)s')
-    log = logging.getLogger("fats")
-
     # if len(args.instruments) < 2:
     #     log.error("Not enough instruments specified.")
     #     raise ConfigError('tracked_instruments', "FATStack needs at least two instrument.")
@@ -108,20 +90,7 @@ def startup():
 
     # Mounting the config to the ROOT
     fs.ROOT.Config = args
-
-    # Initializing the event loop
-    fs.loop.init()
-
-    if args.collector:
-        import fatstack.collector
-        fatstack.collector.init(args.collector)
-
-    if not args.no_shell:
-        import fatstack.shell
-        fs.ROOT.Sys.shell = fatstack.shell.Shell(fs.ROOT.__dict__)
-
-    log.info("Starting event loop.")
-    fs.loop.finish_all()
+    log.info("Command line arguments parsed.")
 
 
 # Special type converters for FATS specific command line arguments.

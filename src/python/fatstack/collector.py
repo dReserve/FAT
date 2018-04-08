@@ -7,11 +7,10 @@ it to other FATStack processes.
 
 import fatstack as fs
 import fatstack.database as fsdb
-import logging
-import sys
+import logging, sys
 
 collector = sys.modules[__name__]
-log = logging.getLogger("Collector")
+log = logging.getLogger(__name__)
 
 
 def init(init_string):
@@ -22,10 +21,6 @@ def init(init_string):
 
     # Setting up the database
     collector.db = fsdb.Database(fs.ROOT.Config.collector_database)
-
-    # Start instrument tracking
-    for instrument in fs.ROOT.Config.instruments:
-        instrument.start_tracking()
 
     # Start exchange tracking
     for exchange in fs.ROOT.Config.exchanges:

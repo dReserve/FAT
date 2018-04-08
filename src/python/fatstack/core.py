@@ -34,9 +34,6 @@ class Tree(Node):
 class Instrument:
     "A financial instrument that you can work with in FATStack."
 
-    def start_tracking(self):
-        self.track = True
-
     def __str__(self):
         return self.code
 

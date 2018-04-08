@@ -4,7 +4,7 @@ from code import InteractiveConsole
 import sys
 import logging
 
-log = logging.getLogger("Shell")
+log = logging.getLogger(__name__)
 
 
 class Shell(InteractiveConsole):
@@ -23,7 +23,7 @@ class Shell(InteractiveConsole):
             sys.ps2
         except AttributeError:
             sys.ps2 = "... "
-        self.write("FATStack {}\n".format(fs.__version__))
+
         more = 0
         while 1:
             try:
