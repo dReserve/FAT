@@ -1,3 +1,3 @@
 """
-All the different financial instruments supported by FATStack.
+Financial instruments supported by FATStack.
 """

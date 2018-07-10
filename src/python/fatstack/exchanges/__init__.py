@@ -1,3 +1,3 @@
 """
-All the different exchanges supported by FATStack.
+Exchanges supported by FATStack.
 """

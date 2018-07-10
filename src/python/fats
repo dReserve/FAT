@@ -1,28 +1,26 @@
 #!/usr/bin/env python3
 
 import fatstack as fs
-import fatstack.cli
-import fatstack.logging
 import logging
 
-fatstack.logging.init_bootstrap()
+fs.core.bootstrap_logging()
 log = logging.getLogger(__file__)
 
 log.info("Starting FATStack %s.", fs.__version__)
-fatstack.cli.parse_args()
+fs.core.parse_args()
 
-fatstack.logging.init_final()
-log.info("Test")
+fs.core.init_logging(fs.ROOT.Config)
 
 # Initializing the event loop
 fs.loop.init()
 
 if fs.ROOT.Config.collector:
     import fatstack.collector
-    fatstack.collector.init(fs.ROOT.Config.collector)
+    fatstack.collector.init()
 
 if not fs.ROOT.Config.no_shell:
     import fatstack.shell
     fs.ROOT.Sys.shell = fatstack.shell.Shell(fs.ROOT.__dict__)
+    log.info("Initialization finished, entering the shell.")
 
 fs.loop.finish_all()

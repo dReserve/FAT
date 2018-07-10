@@ -6,8 +6,8 @@ import signal
 import functools
 import sys
 
-loop = sys.modules[__name__]
 
+loop = sys.modules[__name__]
 log = logging.getLogger(__name__)
 event_loop = asyncio.get_event_loop()
 
@@ -26,7 +26,7 @@ def register(task):
 
 
 def finish(task):
-    event_loop.run_until_complete(task)
+    return event_loop.run_until_complete(task)
 
 
 def finish_all():
@@ -63,4 +63,4 @@ def exit_loop(message):
 
 
 async def stop_loop():
-    loop.stop()
+    event_loop.stop()

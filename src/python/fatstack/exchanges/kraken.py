@@ -1,8 +1,11 @@
 import fatstack as fs
-import logging
-import asyncio
+import logging, asyncio, datetime
 import pandas as pd
 import krakenex    # TO DO: Remove this from here.
+
+
+class KRAKENApiError(Exception):
+    pass
 
 
 class KRAKEN(fs.core.Exchange):
@@ -24,10 +27,16 @@ class KRAKEN(fs.core.Exchange):
 
         self.api = krakenex.API()
         self.api_call_rate_limit = 6
+        self.trade_block_len = 1000
 
         self.last_api_call = fs.loop.time()
 
     def get_markets(self, instruments):
+        """
+        Creates markets specified by the instrument list. It creates a market object for every
+        existing matket on the exchange which has both the base and the quote in the instruments
+        list.
+        """
         insts = {i.code: i for i in instruments}
         names = {i.code: i.code for i in instruments}
         names.update(self.alt_names_map)
@@ -45,8 +54,15 @@ class KRAKEN(fs.core.Exchange):
 
         return markets
 
-    async def fetch_trades(self, market):
-        loop = asyncio.get_event_loop()
+    def trade_id_to_time(self, trade_id):
+        return datetime.datetime.utcfromtimestamp(int(trade_id) / 1e9)
+
+    async def fetch_trade_block(self, trade_block):
+        """
+        Fetches the trades from the exchange naively taking care of API overloading.
+        """
+
+        loop = fs.loop.event_loop
         delta = loop.time() - self.last_api_call
 
         self.log.debug("Schedueling delta: {:.3f}".format(delta))
@@ -58,27 +74,26 @@ class KRAKEN(fs.core.Exchange):
             self.last_api_call = loop.time()
 
         # We need to run the krakenex code in executor to maintain asyncron behaviour
-        try:
-            res = await loop.run_in_executor(
-                    None, self.api.query_public, 'Trades',
-                    {'pair': market.api_name, 'since': str(market.last_trade)})
-        except Exception as e:
-            self.log.error(repr(e))
-            return None, None
+        json_block = await loop.run_in_executor(
+                None, self.api.query_public, 'Trades',
+                {'pair': trade_block.market.api_name, 'since': str(trade_block.from_trade_id)})
 
-        if len(res['error']) == 0:
-            last_id = int(res['result']['last'])
-            res = res['result'][market.api_name]
-            trades = pd.DataFrame(
-                res, columns=['price', 'volume', 'time', 'buy', 'limit', 'misc'])
-            del trades['misc']
-            trades['price'] = trades['price'].map(lambda x: float(x))
-            trades['volume'] = trades['volume'].map(lambda x: float(x))
-            trades['buy'] = trades['buy'].map(lambda x: x is 'b')
-            trades['limit'] = trades['limit'].map(lambda x: x is 'l')
-            trades['market'] = market.db_id
-            self.log.info("Fetched {} trades from {} .".format(len(trades), market.code))
-            return trades, last_id
-        else:
-            self.log.error(res['error'])
-            return None, None
+        if len(json_block['error']) != 0:
+            raise KRAKENApiError(self.json_block['error'])
+
+        return json_block
+
+    def get_trades_from_json(self, trade_block):
+        trade_block.last = trade_block.json_block['result']['last']
+        trade_block.json_trades = trade_block.json_block['result'][trade_block.market.api_name]
+
+        trades = pd.DataFrame(
+            trade_block.json_trades, columns=['price', 'volume', 'time', 'buy', 'limit', 'misc'])
+        del trades['misc']
+        trades['price'] = trades['price'].map(lambda x: float(x))
+        trades['volume'] = trades['volume'].map(lambda x: float(x))
+        trades['time'] = trades['time'].map(lambda x: datetime.datetime.utcfromtimestamp(x))
+        trades['buy'] = trades['buy'].map(lambda x: x is 'b')
+        trades['limit'] = trades['limit'].map(lambda x: x is 'l')
+
+        trade_block.trades = trades
