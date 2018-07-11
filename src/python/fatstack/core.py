@@ -186,24 +186,6 @@ class Market:
         return "<Market exchange: {}, base: {}, quote: {}>".format(self.exchange, self.base,
                                                                    self.quote)
 
-    async def track(self):
-        conn = fs.ROOT.Sys.collector.db.conn
-        while True:
-            self.log.info("Fetching trades since {}".format(
-                    time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(self.last_cached_trade / 1e9))))
-            try:
-                trade_block = await self.exchange.get_next_trades(self)
-                records = list(trade_block.trades.itertuples(index=False))
-                async with conn.transaction():
-                    await conn.copy_records_to_table(self.code.lower(), records=records)
-                    await conn.execute(
-                            "UPDATE market SET last = $1 WHERE code = $2",
-                            trade_block.last_trade, self.code)
-                self.log.info("Inserted %s trades into %s.", len(records), self.code)
-                self.last_trade = trade_block.last_trade
-            except Exception as e:
-                self.log.error(repr(e))
-
 
 # CLI functions
 
@@ -258,9 +240,9 @@ def parse_args():
     # Modules
     parser.add_argument('-C', '--collector', nargs='?', default=False, const=True,
                         help="Collector address.")
-    parser.add_argument('-B', '--brain', default='',
+    parser.add_argument('-B', '--brain', nargs='?', default=False, const=True,
                         help="Brain address.")
-    parser.add_argument('-T', '--trader', default='',
+    parser.add_argument('-T', '--trader', nargs='?', default=False, const=True,
                         help="Trader address.")
     parser.add_argument('-S', '--no-shell', default=False, action='store_true',
                         help="Don't run interactive shell.")

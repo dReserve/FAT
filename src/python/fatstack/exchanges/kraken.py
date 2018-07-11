@@ -1,5 +1,5 @@
 import fatstack as fs
-import logging, asyncio, datetime
+import logging, asyncio, datetime, math
 import pandas as pd
 import krakenex    # TO DO: Remove this from here.
 
@@ -90,7 +90,7 @@ class KRAKEN(fs.core.Exchange):
         trades = pd.DataFrame(
             trade_block.json_trades, columns=['price', 'volume', 'time', 'buy', 'limit', 'misc'])
         del trades['misc']
-        trades['price'] = trades['price'].map(lambda x: float(x))
+        trades['price'] = trades['price'].map(lambda x: math.log10(float(x)))
         trades['volume'] = trades['volume'].map(lambda x: float(x))
         trades['time'] = trades['time'].map(lambda x: datetime.datetime.utcfromtimestamp(x))
         trades['buy'] = trades['buy'].map(lambda x: x is 'b')

@@ -88,7 +88,7 @@ def init():
     """
     Initializes the Collector.
     """
-    log.info("Initializing collector.")
+    log.info("Initializing the collector.")
     fs.ROOT.Sys.collector = collector
 
     collector.trade_cache = os.path.join(fs.ROOT.Config.var_path, fs.ROOT.Config.trade_cache)

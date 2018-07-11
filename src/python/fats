@@ -18,6 +18,11 @@ if fs.ROOT.Config.collector:
     import fatstack.collector
     fatstack.collector.init()
 
+log.info(fs.ROOT.Config.brain)
+if fs.ROOT.Config.brain:
+    import fatstack.brain
+    fatstack.brain.init()
+
 if not fs.ROOT.Config.no_shell:
     import fatstack.shell
     fs.ROOT.Sys.shell = fatstack.shell.Shell(fs.ROOT.__dict__)
