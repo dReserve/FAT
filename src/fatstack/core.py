@@ -112,14 +112,13 @@ class Pair:
 class Exchange(Node):
     "An exchange that provides an API for trading."
 
-    def add_common_markets(self, instruments):
-        self.markets = self.get_markets(instruments)
+    def get_markets(self, instruments):
+        """
+        Retrieve the supported markets from the exchange. Implemented in the child classes.
+        """
 
-    def start_tracking(self):
-        self.track = True
-        for market in self.markets:
-            self.log.info("Tracking {}".format(market))
-            fs.loop.register(market.track())
+    async def add_common_markets(self, instruments):
+        self.markets = await self.get_markets(instruments)
 
     def __str__(self):
         return self.code
@@ -142,7 +141,8 @@ class Market:
 
         self.log = logging.getLogger(self.code)
 
-        res = fs.loop.finish(self.init_trade_table())
+    async def sync_db(self):
+        res = await self.init_trade_table()
         self.last_stored_trade_id = res[0]
         self.last_cached_trade_id = res[1]
         self.not_cached = res[2]
@@ -197,14 +197,13 @@ class Database:
     def __init__(self, conn_string, init_query):
         self.server, self.database = conn_string.split('/', 1)
         self.conn_string = conn_string
-
-        fs.loop.finish(self.connect_or_create(init_query))
+        self.init_query = init_query
 
     async def create_pool(self):
         "Creates a connection pool for the database."
         return await asyncpg.create_pool('postgresql://' + self.conn_string)
 
-    async def connect_or_create(self, init_query):
+    async def connect_or_create(self):
         "Connects to exiting database or creates it."
         # Connect to an 'admin' database that's surely exists.
         admin_conn = await asyncpg.connect(

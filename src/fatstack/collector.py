@@ -4,11 +4,23 @@ it to other FATStack processes.
 """
 
 import fatstack as fs
-import logging, sys, os.path, json
-# import time
+import fatstack.concurrency
+import logging, sys, os.path, json, asyncio
+import threading
 
 collector = sys.modules[__name__]
 log = logging.getLogger(__name__)
+
+
+class CollectorThread(fatstack.concurrency.AsyncThread):
+    def register_tasks(self):
+        # Connecting to the database
+        self.loop.run_until_complete(collector.db.connect_or_create())
+        # Start syncing the markets.
+        for exchange in fs.ROOT.Config.exchanges:
+            self.loop.run_until_complete(
+                    exchange.add_common_markets(fs.ROOT.Config.instruments))
+            sync_all_markets(exchange)
 
 
 class TradeBlock:
@@ -84,12 +96,8 @@ class TradeBlock:
             self.from_time)
 
 
-def init():
-    """
-    Initializes the Collector.
-    """
+def bind():
     log.info("Initializing the collector.")
-    fs.ROOT.Sys.collector = collector
 
     collector.trade_cache = os.path.join(fs.ROOT.Config.var_path, fs.ROOT.Config.trade_cache)
 
@@ -102,12 +110,10 @@ def init():
 
     collector.db = fs.core.Database(fs.ROOT.Config.collector_database, init_query)
 
-    # Start syncing the markets.
-    for exchange in fs.ROOT.Config.exchanges:
-        exchange.add_common_markets(fs.ROOT.Config.instruments)
-        sync_all_markets(exchange)
+    collector.thread = CollectorThread()
+    collector.thread.start()
 
-    log.info("Initialization done.")
+    fs.ROOT.Sys.collector = collector
 
 
 def sync_all_markets(exchange):
@@ -118,7 +124,7 @@ def sync_all_markets(exchange):
     exchange.track = True
     for market in exchange.markets:
         log.info("Started syncing {} .".format(market))
-        fs.loop.register(sync_market(market))
+        asyncio.ensure_future(sync_market(market))
 
 
 async def sync_market(market):

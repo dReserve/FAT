@@ -1,5 +1,4 @@
 import fatstack.core as core
-import fatstack.loop as loop
 import fatstack.config as config
 import logging
 
@@ -16,11 +15,11 @@ def start():
     core.init_logging(ROOT.Config)
 
     # Initializing the event loop
-    loop.init()
+    # loop.init()
 
     if ROOT.Config.collector:
         import fatstack.collector
-        fatstack.collector.init()
+        fatstack.collector.bind()
 
     if ROOT.Config.brain:
         import fatstack.brain
@@ -30,8 +29,6 @@ def start():
     #     import fatstack.shell
     #     ROOT.Sys.shell = fatstack.shell.Shell(ROOT.__dict__)
     #     log.info("Initialization finished, entering the shell.")
-
-    loop.finish_all()
 
 
 # This is the root of the fatstack tree. We mount user accessible objects under this object.

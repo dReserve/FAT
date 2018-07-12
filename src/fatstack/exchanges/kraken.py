@@ -29,9 +29,9 @@ class KRAKEN(fs.core.Exchange):
         self.api_call_rate_limit = 6
         self.trade_block_len = 1000
 
-        self.last_api_call = fs.loop.time()
+        self.last_api_call = asyncio.get_event_loop().time()
 
-    def get_markets(self, instruments):
+    async def get_markets(self, instruments):
         """
         Creates markets specified by the instrument list. It creates a market object for every
         existing matket on the exchange which has both the base and the quote in the instruments
@@ -50,7 +50,9 @@ class KRAKEN(fs.core.Exchange):
                     base = code
                     quote = pair[len(alt):]
                     if quote in names and names[quote] in insts:
-                        markets.append(fs.core.Market(self, insts[base], insts[names[quote]], pair))
+                        market = fs.core.Market(self, insts[base], insts[names[quote]], pair)
+                        await market.sync_db()
+                        markets.append(market)
 
         return markets
 
@@ -62,7 +64,7 @@ class KRAKEN(fs.core.Exchange):
         Fetches the trades from the exchange naively taking care of API overloading.
         """
 
-        loop = fs.loop.event_loop
+        loop = asyncio.get_event_loop()
         delta = loop.time() - self.last_api_call
 
         self.log.debug("Schedueling delta: {:.3f}".format(delta))
