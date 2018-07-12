@@ -2,3 +2,4 @@
 instruments = ['eth', 'btc', 'usd']
 exchanges = ['kraken']
 my_conf = 'valami'
+collector = True

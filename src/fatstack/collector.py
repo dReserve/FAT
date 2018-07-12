@@ -6,7 +6,6 @@ it to other FATStack processes.
 import fatstack as fs
 import fatstack.concurrency
 import logging, sys, os.path, json, asyncio
-import threading
 
 collector = sys.modules[__name__]
 log = logging.getLogger(__name__)
@@ -72,16 +71,24 @@ class TradeBlock:
         if not self.loaded_from_disk:
             if len(self.json_trades) == self.market.exchange.trade_block_len and self.market.not_cached == 0:
                 self.dump_json()
-                self.market.last_cached_trade_id = self.last
+                await self.update_last_cached_id(self.last)
             else:
                 self.market.not_cached += len(self.json_trades)
                 if self.market.not_cached >= self.market.exchange.trade_block_len:
                     large_trade_block = TradeBlock(self.market, self.market.last_cached_trade_id)
                     large_trade_block.load_json()
                     large_trade_block.dump_json()
-                    self.market.last_cached_trade_id = large_trade_block.last
+                    await self.update_last_cached_id(large_trade_block.last)
                     self.market.not_cached -= self.len(large_trade_block.json_trades)
+
             log.info("Saved {} .".format(self.cache_file))
+
+    async def update_last_cached_id(self, last_cached_id):
+        self.market.last_cached_trade_id = last_cached_id
+        async with collector.db.pool.acquire() as con:
+            await con.execute(
+                    "UPDATE market SET last_cached_trade_id = $1 WHERE code = $2",
+                    last_cached_id, self.market.code)
 
     def dump_json(self):
         if not os.path.isdir(os.path.dirname(self.cache_file)):
